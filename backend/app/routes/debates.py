@@ -1,0 +1,268 @@
+import asyncio
+import logging
+
+from fastapi import APIRouter, HTTPException
+
+from app.adapters.registry import create_adapter, list_available_models, MODEL_REGISTRY, _PROVIDER_KEY_MAP
+from app.config import settings
+from app.models.api import (
+    CreateDebateRequest,
+    DebateListItem,
+    EditBriefRequest,
+    ForkRequest,
+    ResumeRequest,
+    ValidateKeysRequest,
+)
+from app.models.debate import DebateBrief, DebateSession, DebateStatus, Disagreement
+from app.orchestrator.engine import DebateOrchestrator
+from app.storage.file_store import FileStore
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api")
+
+store = FileStore(data_dir=settings.data_dir)
+
+# Track running debate tasks so we don't lose references
+_running_tasks: dict[str, asyncio.Task] = {}
+
+
+def _merge_api_keys(request_keys: dict[str, str]) -> dict[str, str]:
+    """Merge request-provided API keys with env-configured ones. Request keys take priority."""
+    keys: dict[str, str] = {}
+    if settings.anthropic_api_key:
+        keys["anthropic"] = settings.anthropic_api_key
+    if settings.openai_api_key:
+        keys["openai"] = settings.openai_api_key
+    if settings.gemini_api_key:
+        keys["gemini"] = settings.gemini_api_key
+    if settings.deepseek_api_key:
+        keys["deepseek"] = settings.deepseek_api_key
+    keys.update(request_keys)
+    return keys
+
+
+def _create_orchestrator(
+    model_ids: list[str], api_keys: dict[str, str], judge_model_id: str | None = None
+) -> DebateOrchestrator:
+    """Create an orchestrator with adapters for the given models."""
+    adapters = []
+    for model_id in model_ids:
+        adapters.append(create_adapter(model_id, api_keys))
+
+    # Judge adapter: explicit choice, or fall back to first debater
+    if judge_model_id:
+        brief_adapter = create_adapter(judge_model_id, api_keys)
+    else:
+        brief_adapter = adapters[0]
+
+    return DebateOrchestrator(store=store, adapters=adapters, brief_adapter=brief_adapter)
+
+
+@router.post("/debates")
+async def create_debate(request: CreateDebateRequest) -> DebateSession:
+    """Create a new debate session and start the orchestrator."""
+    api_keys = _merge_api_keys(request.api_keys)
+
+    # Validate that we can create all requested adapters
+    try:
+        orchestrator = _create_orchestrator(request.model_ids, api_keys, request.judge_model_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    session = DebateSession(
+        question=request.question,
+        model_ids=request.model_ids,
+        judge_model_id=request.judge_model_id,
+        max_rounds=request.max_rounds,
+    )
+    store.save(session)
+
+    # Launch orchestrator as background task
+    task = asyncio.create_task(orchestrator.run(session))
+    _running_tasks[session.id] = task
+
+    # Clean up task reference when done
+    def _cleanup(t: asyncio.Task, sid: str = session.id):
+        _running_tasks.pop(sid, None)
+
+    task.add_done_callback(_cleanup)
+
+    return session
+
+
+@router.get("/debates")
+async def list_debates() -> list[DebateListItem]:
+    """List all debate sessions."""
+    return store.list_all()
+
+
+@router.get("/debates/{debate_id}")
+async def get_debate(debate_id: str) -> DebateSession:
+    """Get a full debate session by ID."""
+    session = store.load(debate_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Debate not found")
+    return session
+
+
+@router.delete("/debates/{debate_id}")
+async def delete_debate(debate_id: str) -> dict:
+    """Delete a debate session."""
+    # Cancel if running
+    task = _running_tasks.pop(debate_id, None)
+    if task and not task.done():
+        task.cancel()
+
+    if store.delete(debate_id):
+        return {"deleted": True}
+    raise HTTPException(status_code=404, detail="Debate not found")
+
+
+@router.put("/debates/{debate_id}/rounds/{round_num}/brief")
+async def edit_brief(debate_id: str, round_num: int, request: EditBriefRequest) -> DebateBrief:
+    """Edit a round's brief and pause the debate."""
+    session = store.load(debate_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Debate not found")
+
+    # Find the round
+    target_round = None
+    for r in session.rounds:
+        if r.number == round_num:
+            target_round = r
+            break
+
+    if target_round is None:
+        raise HTTPException(status_code=404, detail=f"Round {round_num} not found")
+
+    if target_round.brief is None:
+        raise HTTPException(status_code=400, detail="Round has no brief to edit")
+
+    # Apply edits
+    if request.consensus is not None:
+        target_round.brief.consensus = request.consensus
+    if request.disagreements is not None:
+        target_round.brief.disagreements = [
+            Disagreement(**d) if isinstance(d, dict) else d for d in request.disagreements
+        ]
+    if request.open_questions is not None:
+        target_round.brief.open_questions = request.open_questions
+    if request.summary is not None:
+        target_round.brief.summary = request.summary
+
+    target_round.brief.edited = True
+
+    # Pause the debate
+    session.status = DebateStatus.PAUSED
+    # Remove any rounds after the edited one
+    session.rounds = [r for r in session.rounds if r.number <= round_num]
+
+    store.save(session)
+    return target_round.brief
+
+
+@router.post("/debates/{debate_id}/resume")
+async def resume_debate(debate_id: str, request: ResumeRequest) -> DebateSession:
+    """Resume a paused debate."""
+    session = store.load(debate_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Debate not found")
+
+    if session.status != DebateStatus.PAUSED:
+        raise HTTPException(status_code=400, detail=f"Cannot resume debate with status: {session.status}")
+
+    api_keys = _merge_api_keys(request.api_keys)
+
+    try:
+        orchestrator = _create_orchestrator(session.model_ids, api_keys, session.judge_model_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    session.status = DebateStatus.RUNNING
+    store.save(session)
+
+    task = asyncio.create_task(orchestrator.run(session))
+    _running_tasks[session.id] = task
+
+    def _cleanup(t: asyncio.Task, sid: str = session.id):
+        _running_tasks.pop(sid, None)
+
+    task.add_done_callback(_cleanup)
+
+    return session
+
+
+@router.post("/debates/{debate_id}/fork")
+async def fork_debate(debate_id: str, request: ForkRequest) -> DebateSession:
+    """Fork a debate at a specified round."""
+    session = store.load(debate_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Debate not found")
+
+    if request.fork_at_round < 1 or request.fork_at_round > len(session.rounds):
+        raise HTTPException(status_code=400, detail="Invalid fork round number")
+
+    api_keys = _merge_api_keys(request.api_keys)
+
+    # Create new session with rounds up to fork point
+    forked_rounds = [r for r in session.rounds if r.number <= request.fork_at_round]
+    new_session = DebateSession(
+        question=request.question or session.question,
+        model_ids=session.model_ids,
+        max_rounds=session.max_rounds,
+        rounds=forked_rounds,
+        forked_from=session.id,
+        fork_point=request.fork_at_round,
+    )
+    store.save(new_session)
+
+    # Start orchestrator for the fork
+    try:
+        orchestrator = _create_orchestrator(new_session.model_ids, api_keys, new_session.judge_model_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    task = asyncio.create_task(orchestrator.run(new_session))
+    _running_tasks[new_session.id] = task
+
+    def _cleanup(t: asyncio.Task, sid: str = new_session.id):
+        _running_tasks.pop(sid, None)
+
+    task.add_done_callback(_cleanup)
+
+    return new_session
+
+
+@router.post("/config/validate-keys")
+async def validate_keys(request: ValidateKeysRequest) -> dict:
+    """Validate API keys by making a tiny request to each provider."""
+    results: dict[str, dict] = {}
+
+    for provider, key in request.api_keys.items():
+        try:
+            # Find any model for this provider to test with
+            test_model_id = None
+            for model_id, (prov, _) in MODEL_REGISTRY.items():
+                if _PROVIDER_KEY_MAP.get(prov) == provider:
+                    test_model_id = model_id
+                    break
+
+            if not test_model_id:
+                results[provider] = {"valid": False, "error": f"Unknown provider: {provider}"}
+                continue
+
+            adapter = create_adapter(test_model_id, {provider: key})
+            # Make a minimal request
+            await adapter.generate([{"role": "user", "content": "Say 'ok'"}])
+            results[provider] = {"valid": True}
+        except Exception as e:
+            results[provider] = {"valid": False, "error": str(e)}
+
+    return results
+
+
+@router.get("/models")
+async def get_models() -> list[dict]:
+    """List all available models."""
+    return list_available_models()

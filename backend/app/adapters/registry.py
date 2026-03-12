@@ -1,0 +1,67 @@
+from app.adapters.base import LLMAdapter
+from app.adapters.claude import ClaudeAdapter
+from app.adapters.deepseek import create_deepseek_adapter
+from app.adapters.gemini import GeminiAdapter
+from app.adapters.openai_adapter import OpenAIAdapter
+
+# model_id -> (provider, default_model_name)
+MODEL_REGISTRY: dict[str, tuple[str, str]] = {
+    "claude-sonnet": ("anthropic", "claude-sonnet-4-20250514"),
+    "claude-haiku": ("anthropic", "claude-haiku-4-5-20251001"),
+    "gpt-4o": ("openai", "gpt-4o"),
+    "gpt-4o-mini": ("openai", "gpt-4o-mini"),
+    "gemini-flash": ("google", "gemini-2.0-flash"),
+    "gemini-pro": ("google", "gemini-2.5-pro-preview-06-05"),
+    "deepseek": ("deepseek", "deepseek-chat"),
+}
+
+# Map provider names to the API key name expected
+_PROVIDER_KEY_MAP: dict[str, str] = {
+    "anthropic": "anthropic",
+    "openai": "openai",
+    "google": "gemini",
+    "deepseek": "deepseek",
+}
+
+
+def create_adapter(model_id: str, api_keys: dict[str, str]) -> LLMAdapter:
+    """Create an LLM adapter for the given model_id.
+
+    Args:
+        model_id: Short model identifier (e.g. "claude-sonnet").
+        api_keys: Mapping of provider -> API key.
+
+    Returns:
+        An instantiated adapter.
+
+    Raises:
+        ValueError: If model_id is unknown or required API key is missing.
+    """
+    if model_id not in MODEL_REGISTRY:
+        raise ValueError(f"Unknown model: {model_id}. Available: {list(MODEL_REGISTRY.keys())}")
+
+    provider, default_model = MODEL_REGISTRY[model_id]
+    key_name = _PROVIDER_KEY_MAP[provider]
+    api_key = api_keys.get(key_name)
+
+    if not api_key:
+        raise ValueError(f"Missing API key for provider '{key_name}' (needed by {model_id})")
+
+    if provider == "anthropic":
+        return ClaudeAdapter(api_key=api_key, model=default_model, model_id=model_id)  # type: ignore[return-value]
+    elif provider == "openai":
+        return OpenAIAdapter(api_key=api_key, model=default_model, model_id=model_id)  # type: ignore[return-value]
+    elif provider == "google":
+        return GeminiAdapter(api_key=api_key, model=default_model, model_id=model_id)  # type: ignore[return-value]
+    elif provider == "deepseek":
+        return create_deepseek_adapter(api_key=api_key, model=default_model, model_id=model_id)  # type: ignore[return-value]
+    else:
+        raise ValueError(f"No adapter implementation for provider: {provider}")
+
+
+def list_available_models() -> list[dict]:
+    """Return list of all registered models with their provider."""
+    return [
+        {"model_id": model_id, "provider": provider}
+        for model_id, (provider, _) in MODEL_REGISTRY.items()
+    ]
