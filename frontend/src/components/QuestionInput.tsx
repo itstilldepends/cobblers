@@ -30,10 +30,10 @@ export const QuestionInput: React.FC<QuestionInputProps> = ({ onStart, loading }
       .catch(() => {
         // Set some defaults if API is not available
         setAvailableModels([
-          { model_id: 'claude-sonnet-4-20250514', provider: 'anthropic' },
-          { model_id: 'gpt-4o', provider: 'openai' },
-          { model_id: 'gemini-2.0-flash', provider: 'google' },
-          { model_id: 'deepseek-chat', provider: 'deepseek' },
+          { model_id: 'claude-sonnet', provider: 'anthropic' },
+          { model_id: 'gpt-5.4', provider: 'openai' },
+          { model_id: 'gemini-flash', provider: 'google' },
+          { model_id: 'deepseek', provider: 'deepseek' },
         ])
       })
       .finally(() => setModelsLoading(false))
@@ -53,12 +53,16 @@ export const QuestionInput: React.FC<QuestionInputProps> = ({ onStart, loading }
     await onStart(question.trim(), selectedModels, maxRounds, judgeModel || null)
   }
 
+  // Map provider names from model list to API key names
+  const providerToKeyName: Record<string, string> = { google: 'gemini' }
   const providers = [...new Set(availableModels.map((m) => m.provider))]
   const configuredProviders = new Set(
     Object.entries(apiKeys)
       .filter(([, v]) => v)
       .map(([k]) => k)
   )
+  const isProviderConfigured = (provider: string) =>
+    configuredProviders.has(providerToKeyName[provider] || provider)
 
   return (
     <div
@@ -91,7 +95,7 @@ export const QuestionInput: React.FC<QuestionInputProps> = ({ onStart, loading }
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
           {providers.map((provider) => {
-            const configured = configuredProviders.has(provider)
+            const configured = isProviderConfigured(provider)
             return (
               <div
                 key={provider}

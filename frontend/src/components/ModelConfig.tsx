@@ -11,7 +11,7 @@ const PROVIDERS = [
   { id: 'openrouter', name: 'OpenRouter', placeholder: 'sk-or-...', hint: 'One key for all models — openrouter.ai' },
   { id: 'anthropic', name: 'Anthropic', placeholder: 'sk-ant-...' },
   { id: 'openai', name: 'OpenAI', placeholder: 'sk-...' },
-  { id: 'google', name: 'Google', placeholder: 'AIza...' },
+  { id: 'gemini', name: 'Google Gemini', placeholder: 'AIza...' },
   { id: 'deepseek', name: 'DeepSeek', placeholder: 'sk-...' },
 ]
 

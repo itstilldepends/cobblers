@@ -23,4 +23,4 @@ Multi-LLM debate/consensus tool.
 ## Things to watch out for
 - Orchestrator runs as asyncio.create_task (background), don't await it in route handlers
 - WS handshake: client must send {api_keys: {...}} as first message after connect
-- Event type names: round_start, model_response, brief_generated, convergence_check, converged, debate_complete, error
+- Event type names: round_start, model_response, model_error, brief_generated, brief_error, convergence_check, converged, debate_complete, error

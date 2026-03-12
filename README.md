@@ -8,7 +8,7 @@ A multi-LLM debate and consensus tool.
 
 ## How it works
 
-1. **Ask a question** and select which models participate (Claude, GPT-4o, Gemini, DeepSeek, etc.)
+1. **Ask a question** and select which models participate (Claude, GPT-5, Gemini, DeepSeek, etc.)
 2. **Round 1** — Each model answers independently, without seeing others' responses
 3. **Brief generation** — A judge model analyzes all responses and extracts consensus points, disagreements, and open questions. Models are anonymized (Model A/B/C) to the judge to prevent bias
 4. **Rounds 2–N** — Models see the brief and respond again, refining positions and addressing disagreements
@@ -47,10 +47,13 @@ You need at least one provider key to run. Keys can be set in:
 
 | Provider | Key name | Models |
 |----------|----------|--------|
-| Anthropic | `ANTHROPIC_API_KEY` | claude-sonnet, claude-haiku |
-| OpenAI | `OPENAI_API_KEY` | gpt-4o, gpt-4o-mini |
+| OpenRouter | `OPENROUTER_API_KEY` | All `or/*` models below — one key for everything via [openrouter.ai](https://openrouter.ai) |
+| Anthropic | `ANTHROPIC_API_KEY` | claude-opus, claude-sonnet, claude-haiku |
+| OpenAI | `OPENAI_API_KEY` | gpt-5.4, gpt-5.4-pro, gpt-5-mini |
 | Google | `GEMINI_API_KEY` | gemini-flash, gemini-pro |
 | DeepSeek | `DEEPSEEK_API_KEY` | deepseek |
+
+**OpenRouter models** (prefix `or/`): or/claude-opus, or/claude-sonnet, or/claude-haiku, or/gpt-5.4, or/gpt-5-mini, or/gemini-flash, or/gemini-pro, or/deepseek, or/llama-4, or/mistral-large
 
 ## Features
 
@@ -67,7 +70,7 @@ You need at least one provider key to run. Keys can be set in:
 - **Backend**: Python, FastAPI, WebSocket, Pydantic v2
 - **Frontend**: React, TypeScript, Vite, Zustand
 - **Storage**: JSON files (MVP) — one file per debate in `backend/data/`
-- **LLM SDKs**: anthropic, openai, google-genai
+- **LLM SDKs**: anthropic, openai (also used for OpenRouter/DeepSeek), google-genai
 
 ## Project structure
 
@@ -76,7 +79,7 @@ cobblers/
 ├── start.sh                    # One-command setup & launch
 ├── backend/
 │   ├── app/
-│   │   ├── adapters/           # LLM provider adapters (Claude, OpenAI, Gemini, DeepSeek)
+│   │   ├── adapters/           # LLM provider adapters (Claude, OpenAI, Gemini, DeepSeek, OpenRouter)
 │   │   ├── orchestrator/       # Debate engine, brief generation, convergence detection
 │   │   ├── prompts/            # Prompt templates for each debate phase
 │   │   ├── routes/             # REST + WebSocket endpoints
