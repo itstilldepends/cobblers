@@ -7,6 +7,7 @@ from app.adapters.openai_adapter import OpenAIAdapter
 # model_id -> (provider, default_model_name)
 MODEL_REGISTRY: dict[str, tuple[str, str]] = {
     # Direct provider models
+    "claude-opus": ("anthropic", "claude-opus-4-20250514"),
     "claude-sonnet": ("anthropic", "claude-sonnet-4-20250514"),
     "claude-haiku": ("anthropic", "claude-haiku-4-5-20251001"),
     "gpt-4o": ("openai", "gpt-4o"),
@@ -15,6 +16,7 @@ MODEL_REGISTRY: dict[str, tuple[str, str]] = {
     "gemini-pro": ("google", "gemini-2.5-pro-preview-06-05"),
     "deepseek": ("deepseek", "deepseek-chat"),
     # OpenRouter — one key, all models
+    "or/claude-opus": ("openrouter", "anthropic/claude-opus-4"),
     "or/claude-sonnet": ("openrouter", "anthropic/claude-sonnet-4"),
     "or/claude-haiku": ("openrouter", "anthropic/claude-haiku-4"),
     "or/gpt-4o": ("openrouter", "openai/gpt-4o"),
