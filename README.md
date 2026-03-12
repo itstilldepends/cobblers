@@ -1,6 +1,10 @@
 # Cobblers
 
-A multi-LLM debate and consensus tool. Ask a question, let multiple AI models independently answer, then watch them debate through structured rounds until they converge on an answer — or agree to disagree.
+A multi-LLM debate and consensus tool.
+
+**The problem**: When tackling complex questions with no single right answer — like designing a system or choosing an implementation approach — you probably already do this manually: ask 3 different LLMs the same question, compare their answers, copy interesting disagreements back into each chat, go back and forth until you're satisfied. It works, but it's tedious.
+
+**Cobblers automates that workflow.** Ask a question, pick your models, and let them debate through structured rounds. The tool extracts consensus and disagreements, feeds them back, and repeats until the models converge — or surface the exact points where they fundamentally disagree. You stay in control: edit the summary, steer the discussion, or fork in a new direction at any point.
 
 ## How it works
 
