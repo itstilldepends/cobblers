@@ -8,6 +8,7 @@ interface ModelConfigProps {
 }
 
 const PROVIDERS = [
+  { id: 'openrouter', name: 'OpenRouter', placeholder: 'sk-or-...', hint: 'One key for all models — openrouter.ai' },
   { id: 'anthropic', name: 'Anthropic', placeholder: 'sk-ant-...' },
   { id: 'openai', name: 'OpenAI', placeholder: 'sk-...' },
   { id: 'google', name: 'Google', placeholder: 'AIza...' },
@@ -134,6 +135,11 @@ export const ModelConfig: React.FC<ModelConfigProps> = ({ onClose }) => {
                 )
               )}
             </label>
+            {'hint' in provider && provider.hint && (
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>
+                {provider.hint}
+              </div>
+            )}
             <input
               type="password"
               value={localKeys[provider.id] || ''}

@@ -28,6 +28,8 @@ def _merge_api_keys(request_keys: dict[str, str]) -> dict[str, str]:
         keys["gemini"] = settings.gemini_api_key
     if settings.deepseek_api_key:
         keys["deepseek"] = settings.deepseek_api_key
+    if settings.openrouter_api_key:
+        keys["openrouter"] = settings.openrouter_api_key
     keys.update(request_keys)
     return keys
 

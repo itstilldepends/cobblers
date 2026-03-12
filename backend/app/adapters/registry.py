@@ -6,6 +6,7 @@ from app.adapters.openai_adapter import OpenAIAdapter
 
 # model_id -> (provider, default_model_name)
 MODEL_REGISTRY: dict[str, tuple[str, str]] = {
+    # Direct provider models
     "claude-sonnet": ("anthropic", "claude-sonnet-4-20250514"),
     "claude-haiku": ("anthropic", "claude-haiku-4-5-20251001"),
     "gpt-4o": ("openai", "gpt-4o"),
@@ -13,6 +14,16 @@ MODEL_REGISTRY: dict[str, tuple[str, str]] = {
     "gemini-flash": ("google", "gemini-2.0-flash"),
     "gemini-pro": ("google", "gemini-2.5-pro-preview-06-05"),
     "deepseek": ("deepseek", "deepseek-chat"),
+    # OpenRouter — one key, all models
+    "or/claude-sonnet": ("openrouter", "anthropic/claude-sonnet-4"),
+    "or/claude-haiku": ("openrouter", "anthropic/claude-haiku-4"),
+    "or/gpt-4o": ("openrouter", "openai/gpt-4o"),
+    "or/gpt-4o-mini": ("openrouter", "openai/gpt-4o-mini"),
+    "or/gemini-flash": ("openrouter", "google/gemini-2.0-flash-001"),
+    "or/gemini-pro": ("openrouter", "google/gemini-2.5-pro-preview"),
+    "or/deepseek": ("openrouter", "deepseek/deepseek-chat"),
+    "or/llama-4": ("openrouter", "meta-llama/llama-4-maverick"),
+    "or/mistral-large": ("openrouter", "mistralai/mistral-large"),
 }
 
 # Map provider names to the API key name expected
@@ -21,6 +32,7 @@ _PROVIDER_KEY_MAP: dict[str, str] = {
     "openai": "openai",
     "google": "gemini",
     "deepseek": "deepseek",
+    "openrouter": "openrouter",
 }
 
 
@@ -55,6 +67,8 @@ def create_adapter(model_id: str, api_keys: dict[str, str]) -> LLMAdapter:
         return GeminiAdapter(api_key=api_key, model=default_model, model_id=model_id)  # type: ignore[return-value]
     elif provider == "deepseek":
         return create_deepseek_adapter(api_key=api_key, model=default_model, model_id=model_id)  # type: ignore[return-value]
+    elif provider == "openrouter":
+        return OpenAIAdapter(api_key=api_key, model=default_model, model_id=model_id, base_url="https://openrouter.ai/api/v1", provider="openrouter")  # type: ignore[return-value]
     else:
         raise ValueError(f"No adapter implementation for provider: {provider}")
 

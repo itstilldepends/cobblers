@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     gemini_api_key: str | None = None
     deepseek_api_key: str | None = None
+    openrouter_api_key: str | None = None
     data_dir: str = "./data"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
