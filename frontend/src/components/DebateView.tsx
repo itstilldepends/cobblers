@@ -111,13 +111,39 @@ export const DebateView: React.FC<DebateViewProps> = ({
           />
 
           {/* Brief */}
-          {currentRound.brief && (
+          {currentRound.brief ? (
             <BriefView
               brief={currentRound.brief}
               debateId={debate.id}
               roundNumber={currentRound.number}
               onBriefEdited={() => fetchDebate(debate.id)}
             />
+          ) : isLatest && debate.status === 'running' && currentRound.responses.length > 0 && (
+            <div
+              style={{
+                textAlign: 'center',
+                padding: 24,
+                color: 'var(--text-muted)',
+                fontSize: 14,
+                marginTop: 16,
+                background: 'var(--card-bg)',
+                borderRadius: 10,
+                border: '1px solid var(--border)',
+              }}
+            >
+              <div
+                style={{
+                  width: 24,
+                  height: 24,
+                  border: '3px solid var(--border)',
+                  borderTopColor: 'var(--accent)',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                  margin: '0 auto 12px',
+                }}
+              />
+              Generating brief...
+            </div>
           )}
 
           {/* Convergence */}
