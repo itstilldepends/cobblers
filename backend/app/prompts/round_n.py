@@ -20,7 +20,9 @@ Please:
 3. Identify if you've changed your mind on anything and why
 4. Highlight remaining uncertainties
 
-Be concise and focus on advancing the discussion.""",
+Be concise and focus on advancing the discussion.
+
+Respond in the same language as the original question.""",
         }
     ]
 

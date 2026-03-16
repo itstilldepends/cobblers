@@ -30,11 +30,13 @@ Analyze whether the debate has converged. Consider:
 2. Have positions changed significantly between rounds?
 3. Are the open questions likely to be resolved with further discussion?
 
+IMPORTANT: Write the "reasoning" field in the same language as the original question.
+
 Respond with valid JSON:
 {{
   "converged": true/false,
   "confidence": 0.0-1.0,
-  "reasoning": "brief explanation"
+  "reasoning": "brief explanation in the same language as the question"
 }}""",
         }
     ]

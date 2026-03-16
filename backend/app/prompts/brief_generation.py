@@ -24,7 +24,9 @@ You MUST respond with valid JSON matching this exact schema:
   "summary": "A brief overall summary of the debate state"
 }
 
-Be precise and objective. Quote or paraphrase the models accurately. Do not add your own opinions."""
+Be precise and objective. Quote or paraphrase the models accurately. Do not add your own opinions.
+
+IMPORTANT: Respond in the same language as the original question."""
 
 
 def build_brief_prompt(
