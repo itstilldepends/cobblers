@@ -237,33 +237,19 @@ async def fork_debate(debate_id: str, request: ForkRequest) -> DebateSession:
     if request.fork_at_round < 1 or request.fork_at_round > len(session.rounds):
         raise HTTPException(status_code=400, detail="Invalid fork round number")
 
-    api_keys = _merge_api_keys(request.api_keys)
-
-    # Create new session with rounds up to fork point
-    forked_rounds = [r for r in session.rounds if r.number <= request.fork_at_round]
+    # Create new session with rounds up to fork point, paused so user can edit brief before resuming
+    forked_rounds = [r.model_copy(deep=True) for r in session.rounds if r.number <= request.fork_at_round]
     new_session = DebateSession(
         question=session.question,
         model_ids=session.model_ids,
+        judge_model_id=session.judge_model_id,
         max_rounds=session.max_rounds,
         rounds=forked_rounds,
         forked_from=session.id,
         fork_point=request.fork_at_round,
+        status=DebateStatus.PAUSED,
     )
     store.save(new_session)
-
-    # Start orchestrator for the fork
-    try:
-        orchestrator = _create_orchestrator(new_session.model_ids, api_keys, new_session.judge_model_id)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    task = asyncio.create_task(orchestrator.run(new_session))
-    _running_tasks[new_session.id] = task
-
-    def _cleanup(t: asyncio.Task, sid: str = new_session.id):
-        _running_tasks.pop(sid, None)
-
-    task.add_done_callback(_cleanup)
 
     return new_session
 
