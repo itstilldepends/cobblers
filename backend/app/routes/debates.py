@@ -176,17 +176,10 @@ async def continue_debate(debate_id: str, request: ContinueRequest) -> DebateSes
     if not session:
         raise HTTPException(status_code=404, detail="Debate not found")
 
-    if session.status == DebateStatus.COMPLETED and request.question:
-        # Follow-up on completed debate
-        pass
-    elif session.status == DebateStatus.PAUSED:
-        # Resume paused debate
-        pass
-    else:
+    if session.status not in (DebateStatus.COMPLETED, DebateStatus.PAUSED):
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot continue debate with status: {session.status}. "
-            "Use question parameter for completed debates, or resume paused debates without question.",
+            detail=f"Cannot continue debate with status: {session.status}",
         )
 
     api_keys = _merge_api_keys(request.api_keys)

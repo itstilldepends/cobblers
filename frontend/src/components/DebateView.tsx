@@ -249,37 +249,7 @@ export const DebateView: React.FC<DebateViewProps> = ({
         </div>
       )}
 
-      {/* Resume / Error */}
-      {debate.status === 'paused' && (
-        <div style={{ marginTop: 16, background: 'var(--card-bg)', borderRadius: 10, border: '1px solid var(--border)', padding: 16 }}>
-          <div style={{ fontSize: 14, color: 'var(--text-muted)', marginBottom: 10 }}>
-            {debate.forked_from
-              ? 'This is a forked debate. Edit the brief above to change the direction, then continue.'
-              : 'Debate is paused. Edit the brief above if needed, then continue.'}
-          </div>
-          <button
-            onClick={handleContinue}
-            disabled={loading}
-            style={{
-              background: 'var(--accent)',
-              border: 'none',
-              color: '#fff',
-              padding: '10px 20px',
-              borderRadius: 8,
-              cursor: loading ? 'not-allowed' : 'pointer',
-              fontSize: 15,
-              fontWeight: 500,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              opacity: loading ? 0.6 : 1,
-            }}
-          >
-            <Play size={16} /> Continue Debate
-          </button>
-        </div>
-      )}
-
+      {/* Error */}
       {debate.status === 'error' && (
         <div
           style={{
@@ -296,13 +266,12 @@ export const DebateView: React.FC<DebateViewProps> = ({
           }}
         >
           <AlertCircle size={16} />
-          This debate encountered an error. You can try resuming or forking from an
-          earlier round.
+          This debate encountered an error. You can try forking or starting a new debate.
         </div>
       )}
 
-      {/* Follow-up Input */}
-      {debate.status === 'completed' && (
+      {/* Continue Input — shown for both paused and completed */}
+      {(debate.status === 'completed' || debate.status === 'paused') && (
         <div
           style={{
             marginTop: 24,
@@ -312,14 +281,18 @@ export const DebateView: React.FC<DebateViewProps> = ({
             padding: 16,
           }}
         >
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'var(--text-secondary)' }}>
-            Ask a follow-up question
-          </div>
+          {debate.status === 'paused' && (
+            <div style={{ fontSize: 14, color: 'var(--text-muted)', marginBottom: 10 }}>
+              {debate.forked_from
+                ? 'This is a forked debate. Edit the brief above if needed, then continue with or without a new question.'
+                : 'Debate is paused. Edit the brief above if needed, then continue.'}
+            </div>
+          )}
           <form
             onSubmit={async (e) => {
               e.preventDefault()
-              if (!followUp.trim()) return
-              await continueDebate(debate.id, followUp.trim())
+              const question = followUp.trim() || undefined
+              await continueDebate(debate.id, question)
               setFollowUp('')
             }}
             style={{ display: 'flex', gap: 8 }}
@@ -327,7 +300,7 @@ export const DebateView: React.FC<DebateViewProps> = ({
             <input
               value={followUp}
               onChange={(e) => setFollowUp(e.target.value)}
-              placeholder="Continue the debate with a follow-up..."
+              placeholder="Ask a follow-up question, or leave empty to continue..."
               style={{
                 flex: 1,
                 background: 'var(--bg-primary)',
@@ -341,23 +314,23 @@ export const DebateView: React.FC<DebateViewProps> = ({
             />
             <button
               type="submit"
-              disabled={loading || !followUp.trim()}
+              disabled={loading}
               style={{
                 background: 'var(--accent)',
                 border: 'none',
                 color: '#fff',
                 padding: '10px 16px',
                 borderRadius: 8,
-                cursor: loading || !followUp.trim() ? 'not-allowed' : 'pointer',
+                cursor: loading ? 'not-allowed' : 'pointer',
                 fontSize: 15,
                 fontWeight: 500,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6,
-                opacity: loading || !followUp.trim() ? 0.5 : 1,
+                opacity: loading ? 0.5 : 1,
               }}
             >
-              <Send size={16} />
+              <Play size={16} /> Continue
             </button>
           </form>
         </div>
