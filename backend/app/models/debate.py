@@ -42,7 +42,13 @@ class Round(BaseModel):
     responses: list[ModelResponse] = Field(default_factory=list)
     brief: DebateBrief | None = None
     convergence: ConvergenceResult | None = None
-    follow_up: str | None = None  # user follow-up question that triggered this round
+
+
+class FollowUp(BaseModel):
+    number: int
+    question: str
+    responses: list[ModelResponse] = Field(default_factory=list)
+    brief: DebateBrief | None = None
 
 
 class DebateSession(BaseModel):
@@ -53,6 +59,7 @@ class DebateSession(BaseModel):
     max_rounds: int = 5
     status: DebateStatus = DebateStatus.RUNNING
     rounds: list[Round] = Field(default_factory=list)
+    follow_ups: list[FollowUp] = Field(default_factory=list)
     forked_from: str | None = None
     fork_point: int | None = None
     created_at: str = Field(

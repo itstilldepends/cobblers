@@ -26,7 +26,6 @@ class FollowUpRequest(BaseModel):
 
 class ForkRequest(BaseModel):
     fork_at_round: int
-    question: str | None = None  # optional new question
     api_keys: dict[str, str] = {}
 
 
@@ -40,5 +39,6 @@ class DebateListItem(BaseModel):
     status: str
     model_ids: list[str]
     round_count: int
+    follow_up_count: int = 0
     created_at: str
     forked_from: str | None = None

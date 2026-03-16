@@ -4,7 +4,7 @@ import type { DebateSession } from '../types'
 
 interface ForkControlsProps {
   debate: DebateSession
-  onFork: (forkAtRound: number, question?: string) => Promise<void>
+  onFork: (forkAtRound: number) => Promise<void>
   loading: boolean
 }
 
@@ -16,11 +16,10 @@ export const ForkControls: React.FC<ForkControlsProps> = ({
   const [forkRound, setForkRound] = useState(
     debate.rounds.length > 0 ? debate.rounds[debate.rounds.length - 1].number : 1
   )
-  const [newQuestion, setNewQuestion] = useState('')
   const [expanded, setExpanded] = useState(false)
 
   const handleFork = async () => {
-    await onFork(forkRound, newQuestion || undefined)
+    await onFork(forkRound)
   }
 
   return (
@@ -111,33 +110,6 @@ export const ForkControls: React.FC<ForkControlsProps> = ({
                 </option>
               ))}
             </select>
-          </div>
-          <div style={{ marginBottom: 12 }}>
-            <label
-              style={{
-                fontSize: 15,
-                color: 'var(--text-muted)',
-                display: 'block',
-                marginBottom: 4,
-              }}
-            >
-              New question (optional):
-            </label>
-            <input
-              type="text"
-              value={newQuestion}
-              onChange={(e) => setNewQuestion(e.target.value)}
-              placeholder="Leave empty to keep the original question"
-              style={{
-                width: '100%',
-                background: 'var(--bg-primary)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border)',
-                borderRadius: 6,
-                padding: '8px 10px',
-                fontSize: 14,
-              }}
-            />
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button

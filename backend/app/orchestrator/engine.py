@@ -3,7 +3,7 @@ import logging
 from typing import Any, Callable, Coroutine
 
 from app.adapters.base import LLMAdapter
-from app.models.debate import DebateSession, DebateStatus, ModelResponse, Round
+from app.models.debate import DebateSession, DebateStatus, FollowUp, ModelResponse, Round
 from app.orchestrator.brief import BriefGenerator
 from app.orchestrator.convergence import ConvergenceDetector
 from app.prompts.round1 import build_round1_prompt
@@ -23,7 +23,7 @@ class DebateOrchestrator:
         self.brief_generator = BriefGenerator(brief_adapter)
         self.convergence_detector = ConvergenceDetector(brief_adapter)
 
-    async def run(self, session: DebateSession, send_event: SendEvent | None = None, follow_up: str | None = None):
+    async def run(self, session: DebateSession, send_event: SendEvent | None = None):
         """Run the full debate loop."""
         try:
             start_round = len(session.rounds) + 1
@@ -31,15 +31,11 @@ class DebateOrchestrator:
                 if session.status == DebateStatus.PAUSED:
                     break
 
-                # Use follow_up only for the first round of this run, then clear it
-                current_follow_up = follow_up
-                follow_up = None
-
                 if send_event:
-                    await send_event({"type": "round_start", "round": round_num, "follow_up": current_follow_up})
+                    await send_event({"type": "round_start", "round": round_num})
 
                 # 1. Build prompts
-                if round_num == 1 and not current_follow_up:
+                if round_num == 1:
                     prompts = {adapter.model_id: build_round1_prompt(session.question) for adapter in self.adapters}
                 else:
                     last_brief = session.rounds[-1].brief if session.rounds else None
@@ -47,7 +43,7 @@ class DebateOrchestrator:
                         logger.error("No brief found for previous round")
                         break
                     prompts = {
-                        adapter.model_id: build_round_n_prompt(session.question, last_brief, round_num, current_follow_up)
+                        adapter.model_id: build_round_n_prompt(session.question, last_brief, round_num)
                         for adapter in self.adapters
                     }
 
@@ -78,7 +74,7 @@ class DebateOrchestrator:
                 responses = await asyncio.gather(*tasks)
 
                 # 3. Create round
-                current_round = Round(number=round_num, responses=list(responses), follow_up=current_follow_up)
+                current_round = Round(number=round_num, responses=list(responses))
 
                 # 4. Generate brief
                 try:
@@ -137,6 +133,89 @@ class DebateOrchestrator:
             if send_event:
                 await send_event({"type": "error", "error": str(e)})
 
-    async def run_streaming(self, session: DebateSession, send_event: SendEvent, follow_up: str | None = None):
+    async def run_follow_up(self, session: DebateSession, question: str, send_event: SendEvent | None = None):
+        """Run a single follow-up round after debate completion."""
+        try:
+            from app.prompts.follow_up import build_follow_up_prompt
+
+            # Get the final debate brief (last round's brief)
+            debate_brief = None
+            for r in reversed(session.rounds):
+                if r.brief:
+                    debate_brief = r.brief
+                    break
+
+            if not debate_brief:
+                raise ValueError("No debate brief found to base follow-up on")
+
+            fu_number = len(session.follow_ups) + 1
+
+            if send_event:
+                await send_event({"type": "follow_up_start", "number": fu_number, "question": question})
+
+            # Build prompts for all adapters
+            messages = build_follow_up_prompt(
+                session.question, debate_brief, session.follow_ups, question
+            )
+            prompts = {adapter.model_id: messages for adapter in self.adapters}
+
+            # Call all adapters concurrently
+            async def call_adapter(adapter, msgs):
+                try:
+                    text = await adapter.generate(msgs)
+                    if send_event:
+                        await send_event({
+                            "type": "follow_up_response",
+                            "number": fu_number,
+                            "model_id": adapter.model_id,
+                            "text": text,
+                        })
+                    return ModelResponse(model_id=adapter.model_id, provider=adapter.provider, text=text)
+                except Exception as e:
+                    error_text = f"Error: {e}"
+                    if send_event:
+                        await send_event({
+                            "type": "follow_up_error",
+                            "number": fu_number,
+                            "model_id": adapter.model_id,
+                            "error": error_text,
+                        })
+                    return ModelResponse(model_id=adapter.model_id, provider=adapter.provider, text=error_text)
+
+            tasks = [call_adapter(adapter, prompts[adapter.model_id]) for adapter in self.adapters]
+            responses = await asyncio.gather(*tasks)
+
+            # Create follow-up
+            follow_up = FollowUp(number=fu_number, question=question, responses=list(responses))
+
+            # Generate brief for the follow-up
+            try:
+                brief = await self.brief_generator.generate(question, list(responses))
+                follow_up.brief = brief
+                if send_event:
+                    await send_event({
+                        "type": "follow_up_brief",
+                        "number": fu_number,
+                        "brief": brief.model_dump(),
+                    })
+            except Exception as e:
+                logger.error(f"Follow-up brief generation failed: {e}")
+
+            # Save
+            session.follow_ups.append(follow_up)
+            session.status = DebateStatus.COMPLETED
+            self.store.save(session)
+
+            if send_event:
+                await send_event({"type": "follow_up_complete", "number": fu_number})
+
+        except Exception as e:
+            logger.exception(f"Follow-up failed: {e}")
+            session.status = DebateStatus.COMPLETED  # keep completed, don't error the whole session
+            self.store.save(session)
+            if send_event:
+                await send_event({"type": "error", "error": str(e)})
+
+    async def run_streaming(self, session: DebateSession, send_event: SendEvent):
         """Run with streaming events sent via WebSocket."""
-        await self.run(session, send_event=send_event, follow_up=follow_up)
+        await self.run(session, send_event=send_event)

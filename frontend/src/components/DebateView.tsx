@@ -48,8 +48,8 @@ export const DebateView: React.FC<DebateViewProps> = ({
     await resumeDebate(debate.id)
   }
 
-  const handleFork = async (forkAtRound: number, question?: string) => {
-    await forkDebate(debate.id, forkAtRound, question)
+  const handleFork = async (forkAtRound: number) => {
+    await forkDebate(debate.id, forkAtRound)
   }
 
   return (
@@ -225,7 +225,75 @@ export const DebateView: React.FC<DebateViewProps> = ({
         </div>
       )}
 
-      {/* Follow-up */}
+      {/* Follow-ups */}
+      {debate.follow_ups && debate.follow_ups.length > 0 && (
+        <div style={{ marginTop: 32 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, color: 'var(--text-secondary)' }}>
+            Follow-up Questions
+          </h3>
+          {debate.follow_ups.map((fu) => (
+            <div key={fu.number} style={{ marginBottom: 24 }}>
+              <div
+                style={{
+                  background: 'var(--accent)12',
+                  border: '1px solid var(--accent)30',
+                  borderRadius: 8,
+                  padding: '10px 14px',
+                  marginBottom: 12,
+                  fontSize: 15,
+                }}
+              >
+                <span style={{ fontWeight: 600, color: 'var(--accent)', marginRight: 8 }}>
+                  Q{fu.number}:
+                </span>
+                {fu.question}
+              </div>
+              <RoundView
+                round={{ number: fu.number, responses: fu.responses, brief: null, convergence: null }}
+                modelIds={debate.model_ids}
+                streamingTokens={fu.number === (debate.follow_ups?.length || 0) && debate.status === 'running' ? streamingTokens : {}}
+              />
+              {fu.brief && (
+                <BriefView
+                  brief={fu.brief}
+                  debateId={debate.id}
+                  roundNumber={-fu.number}
+                  onBriefEdited={() => fetchDebate(debate.id)}
+                />
+              )}
+              {!fu.brief && debate.status === 'running' && fu.number === (debate.follow_ups?.length || 0) && fu.responses.length > 0 && (
+                <div
+                  style={{
+                    textAlign: 'center',
+                    padding: 24,
+                    color: 'var(--text-muted)',
+                    fontSize: 14,
+                    marginTop: 16,
+                    background: 'var(--card-bg)',
+                    borderRadius: 10,
+                    border: '1px solid var(--border)',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 24,
+                      height: 24,
+                      border: '3px solid var(--border)',
+                      borderTopColor: 'var(--accent)',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite',
+                      margin: '0 auto 12px',
+                    }}
+                  />
+                  Generating brief...
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Follow-up Input */}
       {debate.status === 'completed' && (
         <div
           style={{

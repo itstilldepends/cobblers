@@ -149,7 +149,6 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           responses: [],
           brief: null,
           convergence: null,
-          follow_up: (event.follow_up as string) || null,
         }
         set({
           currentDebate: {
@@ -225,6 +224,69 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           currentDebate: {
             ...currentDebate,
             status,
+          },
+          streamingTokens: {},
+        })
+        get().fetchDebates()
+        get().fetchDebate(currentDebate.id)
+        break
+      }
+
+      case 'follow_up_start': {
+        const newFollowUp = {
+          number: event.number,
+          question: event.question || '',
+          responses: [],
+          brief: null,
+        }
+        set({
+          currentDebate: {
+            ...currentDebate,
+            status: 'running',
+            follow_ups: [...(currentDebate.follow_ups || []), newFollowUp],
+          },
+          streamingTokens: {},
+        })
+        break
+      }
+
+      case 'follow_up_response': {
+        const fus = [...(currentDebate.follow_ups || [])]
+        const lastFu = { ...fus[fus.length - 1] }
+        lastFu.responses = [...lastFu.responses, {
+          model_id: event.model_id as string,
+          provider: '',
+          text: event.text as string,
+        }]
+        fus[fus.length - 1] = lastFu
+
+        const tokens = { ...get().streamingTokens }
+        delete tokens[event.model_id as string]
+
+        set({
+          currentDebate: { ...currentDebate, follow_ups: fus },
+          streamingTokens: tokens,
+        })
+        break
+      }
+
+      case 'follow_up_brief': {
+        const fus = [...(currentDebate.follow_ups || [])]
+        const idx = fus.findIndex(f => f.number === event.number)
+        if (idx >= 0) {
+          fus[idx] = { ...fus[idx], brief: event.brief }
+        }
+        set({
+          currentDebate: { ...currentDebate, follow_ups: fus },
+        })
+        break
+      }
+
+      case 'follow_up_complete': {
+        set({
+          currentDebate: {
+            ...currentDebate,
+            status: 'completed',
           },
           streamingTokens: {},
         })

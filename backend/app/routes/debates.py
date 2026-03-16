@@ -182,12 +182,10 @@ async def follow_up_debate(debate_id: str, request: FollowUpRequest) -> DebateSe
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    # Run exactly one round for the follow-up, then stop for user review
-    session.max_rounds = len(session.rounds) + 1
     session.status = DebateStatus.RUNNING
     store.save(session)
 
-    task = asyncio.create_task(orchestrator.run(session, follow_up=request.question))
+    task = asyncio.create_task(orchestrator.run_follow_up(session, request.question))
     _running_tasks[session.id] = task
 
     def _cleanup(t: asyncio.Task, sid: str = session.id):
@@ -244,7 +242,7 @@ async def fork_debate(debate_id: str, request: ForkRequest) -> DebateSession:
     # Create new session with rounds up to fork point
     forked_rounds = [r for r in session.rounds if r.number <= request.fork_at_round]
     new_session = DebateSession(
-        question=request.question or session.question,
+        question=session.question,
         model_ids=session.model_ids,
         max_rounds=session.max_rounds,
         rounds=forked_rounds,

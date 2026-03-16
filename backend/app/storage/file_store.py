@@ -50,6 +50,7 @@ class FileStore:
                         status=data["status"],
                         model_ids=data["model_ids"],
                         round_count=len(data.get("rounds", [])),
+                        follow_up_count=len(data.get("follow_ups", [])),
                         created_at=data["created_at"],
                         forked_from=data.get("forked_from"),
                     )
