@@ -101,7 +101,7 @@ export const DebateView: React.FC<DebateViewProps> = ({
           </span>
         </div>
         <div style={{ fontSize: 15, color: 'var(--text-muted)' }}>
-          Models: {debate.model_ids.join(', ')} | Max rounds: {debate.max_rounds}
+          Models: {debate.model_ids.join(', ')} | Rounds per question: {debate.max_rounds}
         </div>
       </div>
 

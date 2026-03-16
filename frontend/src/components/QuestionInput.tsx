@@ -285,7 +285,7 @@ export const QuestionInput: React.FC<QuestionInputProps> = ({ onStart, loading }
               marginBottom: 6,
             }}
           >
-            Max Rounds
+            Rounds per question
           </label>
           <select
             value={maxRounds}
