@@ -80,10 +80,15 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   },
 
   resumeDebate: async (id: string) => {
-    set({ loading: true, error: null })
+    set({ loading: true, error: null, streamingTokens: {} })
     try {
       await api.resumeDebate(id, get().apiKeys)
-      set({ loading: false })
+      const { currentDebate } = get()
+      if (currentDebate && currentDebate.id === id) {
+        set({ currentDebate: { ...currentDebate, status: 'running' }, loading: false })
+      } else {
+        set({ loading: false })
+      }
     } catch (err: any) {
       set({ error: err.message || 'Failed to resume debate', loading: false })
     }
