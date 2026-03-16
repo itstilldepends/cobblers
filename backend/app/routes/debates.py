@@ -268,3 +268,15 @@ async def validate_keys(request: ValidateKeysRequest) -> dict:
 async def get_models() -> list[dict]:
     """List all available models."""
     return list_available_models()
+
+
+@router.get("/config/server-keys")
+async def get_server_keys() -> dict:
+    """Return which providers have API keys configured on the server."""
+    return {
+        "anthropic": bool(settings.anthropic_api_key),
+        "openai": bool(settings.openai_api_key),
+        "gemini": bool(settings.gemini_api_key),
+        "deepseek": bool(settings.deepseek_api_key),
+        "openrouter": bool(settings.openrouter_api_key),
+    }

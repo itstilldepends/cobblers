@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Play, Circle } from 'lucide-react'
-import { listModels } from '../api/client'
+import { listModels, getServerKeys } from '../api/client'
 import { useDebateStore } from '../stores/debateStore'
 
 interface QuestionInputProps {
@@ -17,9 +17,11 @@ export const QuestionInput: React.FC<QuestionInputProps> = ({ onStart, loading }
   const [judgeModel, setJudgeModel] = useState<string>('')
   const [maxRounds, setMaxRounds] = useState(5)
   const [modelsLoading, setModelsLoading] = useState(true)
+  const [serverKeys, setServerKeys] = useState<Record<string, boolean>>({})
   const apiKeys = useDebateStore((s) => s.apiKeys)
 
   useEffect(() => {
+    getServerKeys().then(setServerKeys).catch(() => {})
     listModels()
       .then((models) => {
         setAvailableModels(models)
@@ -61,8 +63,10 @@ export const QuestionInput: React.FC<QuestionInputProps> = ({ onStart, loading }
       .filter(([, v]) => v)
       .map(([k]) => k)
   )
-  const isProviderConfigured = (provider: string) =>
-    configuredProviders.has(providerToKeyName[provider] || provider)
+  const isProviderConfigured = (provider: string) => {
+    const keyName = providerToKeyName[provider] || provider
+    return configuredProviders.has(keyName) || serverKeys[keyName] === true
+  }
 
   return (
     <div

@@ -102,3 +102,9 @@ export async function listModels(): Promise<{ model_id: string; provider: string
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
+
+export async function getServerKeys(): Promise<Record<string, boolean>> {
+  const res = await fetch(`${BASE}/config/server-keys`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
