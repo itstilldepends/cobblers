@@ -149,6 +149,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           responses: [],
           brief: null,
           convergence: null,
+          follow_up: (event.follow_up as string) || null,
         }
         set({
           currentDebate: {

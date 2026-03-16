@@ -31,12 +31,12 @@ class DebateOrchestrator:
                 if session.status == DebateStatus.PAUSED:
                     break
 
-                if send_event:
-                    await send_event({"type": "round_start", "round": round_num})
-
                 # Use follow_up only for the first round of this run, then clear it
                 current_follow_up = follow_up
                 follow_up = None
+
+                if send_event:
+                    await send_event({"type": "round_start", "round": round_num, "follow_up": current_follow_up})
 
                 # 1. Build prompts
                 if round_num == 1 and not current_follow_up:
