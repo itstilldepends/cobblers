@@ -18,6 +18,22 @@ export const RoundView: React.FC<RoundViewProps> = ({
       <h3 style={{ fontSize: 15, color: 'var(--text-muted)', marginBottom: 12 }}>
         Round {round.number} Responses
       </h3>
+      {round.follow_up && (
+        <div
+          style={{
+            background: 'var(--accent)12',
+            border: '1px solid var(--accent)30',
+            borderRadius: 8,
+            padding: '10px 14px',
+            marginBottom: 12,
+            fontSize: 14,
+            color: 'var(--text-secondary)',
+          }}
+        >
+          <span style={{ fontWeight: 600, color: 'var(--accent)', marginRight: 8 }}>Follow-up:</span>
+          {round.follow_up}
+        </div>
+      )}
       <div
         style={{
           display: 'flex',

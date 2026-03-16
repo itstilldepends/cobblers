@@ -30,6 +30,7 @@ export interface Round {
   responses: ModelResponse[]
   brief: DebateBrief | null
   convergence: ConvergenceResult | null
+  follow_up: string | null
 }
 
 export interface DebateSession {

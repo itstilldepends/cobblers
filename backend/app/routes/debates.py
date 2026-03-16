@@ -9,6 +9,7 @@ from app.models.api import (
     CreateDebateRequest,
     DebateListItem,
     EditBriefRequest,
+    FollowUpRequest,
     ForkRequest,
     ResumeRequest,
     ValidateKeysRequest,
@@ -162,6 +163,39 @@ async def edit_brief(debate_id: str, round_num: int, request: EditBriefRequest) 
 
     store.save(session)
     return target_round.brief
+
+
+@router.post("/debates/{debate_id}/follow-up")
+async def follow_up_debate(debate_id: str, request: FollowUpRequest) -> DebateSession:
+    """Continue a completed debate with a follow-up question."""
+    session = store.load(debate_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Debate not found")
+
+    if session.status != DebateStatus.COMPLETED:
+        raise HTTPException(status_code=400, detail=f"Can only follow up on completed debates, current status: {session.status}")
+
+    api_keys = _merge_api_keys(request.api_keys)
+
+    try:
+        orchestrator = _create_orchestrator(session.model_ids, api_keys, session.judge_model_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # Extend max_rounds to allow more rounds
+    session.max_rounds = len(session.rounds) + 5
+    session.status = DebateStatus.RUNNING
+    store.save(session)
+
+    task = asyncio.create_task(orchestrator.run(session, follow_up=request.question))
+    _running_tasks[session.id] = task
+
+    def _cleanup(t: asyncio.Task, sid: str = session.id):
+        _running_tasks.pop(sid, None)
+
+    task.add_done_callback(_cleanup)
+
+    return session
 
 
 @router.post("/debates/{debate_id}/resume")

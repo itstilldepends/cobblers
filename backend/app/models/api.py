@@ -19,6 +19,10 @@ class EditBriefRequest(BaseModel):
 class ResumeRequest(BaseModel):
     api_keys: dict[str, str] = {}
 
+class FollowUpRequest(BaseModel):
+    question: str
+    api_keys: dict[str, str] = {}
+
 
 class ForkRequest(BaseModel):
     fork_at_round: int

@@ -54,6 +54,20 @@ export async function editBrief(
   if (!res.ok) throw new Error(await res.text())
 }
 
+export async function followUpDebate(
+  id: string,
+  question: string,
+  apiKeys: Record<string, string>
+): Promise<DebateSession> {
+  const res = await fetch(`${BASE}/debates/${id}/follow-up`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question, api_keys: apiKeys }),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+
 export async function resumeDebate(
   id: string,
   apiKeys: Record<string, string>

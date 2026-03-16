@@ -1,9 +1,19 @@
 from app.models.debate import DebateBrief
 
 
-def build_round_n_prompt(question: str, brief: DebateBrief, round_number: int) -> list[dict[str, str]]:
+def build_round_n_prompt(question: str, brief: DebateBrief, round_number: int, follow_up: str | None = None) -> list[dict[str, str]]:
     """Build messages for subsequent rounds - respond to brief."""
     brief_text = format_brief(brief)
+
+    follow_up_section = ""
+    if follow_up:
+        follow_up_section = f"""
+
+The user has asked a follow-up question. Focus your response on addressing it while considering the debate context above.
+
+Follow-up question: {follow_up}
+"""
+
     return [
         {
             "role": "user",
@@ -13,7 +23,7 @@ Original question: {question}
 
 Here is the current state of the debate:
 {brief_text}
-
+{follow_up_section}
 Please:
 1. Address any disagreements where you have additional insights
 2. Refine your position based on valid points raised by others

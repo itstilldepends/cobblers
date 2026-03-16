@@ -17,6 +17,7 @@ interface DebateStore {
   startDebate: (question: string, modelIds: string[], maxRounds: number, judgeModelId?: string | null) => Promise<string>
   deleteDebate: (id: string) => Promise<void>
   resumeDebate: (id: string) => Promise<void>
+  followUpDebate: (id: string, question: string) => Promise<void>
   forkDebate: (id: string, forkAtRound: number, question?: string) => Promise<string>
   setApiKey: (provider: string, key: string) => void
   loadApiKeys: () => void
@@ -85,6 +86,16 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       set({ loading: false })
     } catch (err: any) {
       set({ error: err.message || 'Failed to resume debate', loading: false })
+    }
+  },
+
+  followUpDebate: async (id: string, question: string) => {
+    set({ loading: true, error: null, streamingTokens: {} })
+    try {
+      const debate = await api.followUpDebate(id, question, get().apiKeys)
+      set({ currentDebate: debate, loading: false })
+    } catch (err: any) {
+      set({ error: err.message || 'Failed to send follow-up', loading: false })
     }
   },
 

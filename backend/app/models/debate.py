@@ -42,6 +42,7 @@ class Round(BaseModel):
     responses: list[ModelResponse] = Field(default_factory=list)
     brief: DebateBrief | None = None
     convergence: ConvergenceResult | None = None
+    follow_up: str | None = None  # user follow-up question that triggered this round
 
 
 class DebateSession(BaseModel):

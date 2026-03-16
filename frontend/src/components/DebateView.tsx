@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Play, AlertCircle } from 'lucide-react'
+import { Play, AlertCircle, Send } from 'lucide-react'
 import type { DebateSession } from '../types'
 import { RoundTimeline } from './RoundTimeline'
 import { RoundView } from './RoundView'
@@ -30,7 +30,8 @@ export const DebateView: React.FC<DebateViewProps> = ({
     ? debate.rounds[debate.rounds.length - 1].number
     : 0
   const [selectedRound, setSelectedRound] = useState(latestRound)
-  const { resumeDebate, forkDebate, fetchDebate } = useDebateStore()
+  const [followUp, setFollowUp] = useState('')
+  const { resumeDebate, followUpDebate, forkDebate, fetchDebate } = useDebateStore()
 
   // Keep selectedRound in sync with latest if it's running
   React.useEffect(() => {
@@ -221,6 +222,68 @@ export const DebateView: React.FC<DebateViewProps> = ({
           <AlertCircle size={16} />
           This debate encountered an error. You can try resuming or forking from an
           earlier round.
+        </div>
+      )}
+
+      {/* Follow-up */}
+      {debate.status === 'completed' && (
+        <div
+          style={{
+            marginTop: 24,
+            background: 'var(--card-bg)',
+            borderRadius: 10,
+            border: '1px solid var(--border)',
+            padding: 16,
+          }}
+        >
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'var(--text-secondary)' }}>
+            Ask a follow-up question
+          </div>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault()
+              if (!followUp.trim()) return
+              await followUpDebate(debate.id, followUp.trim())
+              setFollowUp('')
+            }}
+            style={{ display: 'flex', gap: 8 }}
+          >
+            <input
+              value={followUp}
+              onChange={(e) => setFollowUp(e.target.value)}
+              placeholder="Continue the debate with a follow-up..."
+              style={{
+                flex: 1,
+                background: 'var(--bg-primary)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                padding: '10px 14px',
+                fontSize: 15,
+                fontFamily: 'inherit',
+              }}
+            />
+            <button
+              type="submit"
+              disabled={loading || !followUp.trim()}
+              style={{
+                background: 'var(--accent)',
+                border: 'none',
+                color: '#fff',
+                padding: '10px 16px',
+                borderRadius: 8,
+                cursor: loading || !followUp.trim() ? 'not-allowed' : 'pointer',
+                fontSize: 15,
+                fontWeight: 500,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                opacity: loading || !followUp.trim() ? 0.5 : 1,
+              }}
+            >
+              <Send size={16} />
+            </button>
+          </form>
         </div>
       )}
 

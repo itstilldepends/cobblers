@@ -23,7 +23,7 @@ class DebateOrchestrator:
         self.brief_generator = BriefGenerator(brief_adapter)
         self.convergence_detector = ConvergenceDetector(brief_adapter)
 
-    async def run(self, session: DebateSession, send_event: SendEvent | None = None):
+    async def run(self, session: DebateSession, send_event: SendEvent | None = None, follow_up: str | None = None):
         """Run the full debate loop."""
         try:
             start_round = len(session.rounds) + 1
@@ -34,16 +34,20 @@ class DebateOrchestrator:
                 if send_event:
                     await send_event({"type": "round_start", "round": round_num})
 
+                # Use follow_up only for the first round of this run, then clear it
+                current_follow_up = follow_up
+                follow_up = None
+
                 # 1. Build prompts
-                if round_num == 1:
+                if round_num == 1 and not current_follow_up:
                     prompts = {adapter.model_id: build_round1_prompt(session.question) for adapter in self.adapters}
                 else:
-                    last_brief = session.rounds[-1].brief
+                    last_brief = session.rounds[-1].brief if session.rounds else None
                     if last_brief is None:
                         logger.error("No brief found for previous round")
                         break
                     prompts = {
-                        adapter.model_id: build_round_n_prompt(session.question, last_brief, round_num)
+                        adapter.model_id: build_round_n_prompt(session.question, last_brief, round_num, current_follow_up)
                         for adapter in self.adapters
                     }
 
@@ -74,7 +78,7 @@ class DebateOrchestrator:
                 responses = await asyncio.gather(*tasks)
 
                 # 3. Create round
-                current_round = Round(number=round_num, responses=list(responses))
+                current_round = Round(number=round_num, responses=list(responses), follow_up=current_follow_up)
 
                 # 4. Generate brief
                 try:
@@ -133,11 +137,6 @@ class DebateOrchestrator:
             if send_event:
                 await send_event({"type": "error", "error": str(e)})
 
-    async def run_streaming(self, session: DebateSession, send_event: SendEvent):
-        """Run with streaming events sent via WebSocket.
-
-        This is the same as run() but with streaming token support.
-        For now delegates to run() since streaming individual tokens
-        requires more complex coordination.
-        """
-        await self.run(session, send_event=send_event)
+    async def run_streaming(self, session: DebateSession, send_event: SendEvent, follow_up: str | None = None):
+        """Run with streaming events sent via WebSocket."""
+        await self.run(session, send_event=send_event, follow_up=follow_up)
