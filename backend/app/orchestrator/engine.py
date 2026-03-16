@@ -117,7 +117,11 @@ class DebateOrchestrator:
 
                 # 5. Check convergence (only if we have a brief and not on the last round)
                 if current_round.brief and round_num < end_round:
-                    previous_briefs = [r.brief for r in session.rounds if r.brief is not None]
+                    # Only compare briefs from this run (not from prior questions)
+                    previous_briefs = [
+                        r.brief for r in session.rounds
+                        if r.brief is not None and r.number >= start_round
+                    ]
                     try:
                         convergence = await self.convergence_detector.check(
                             convergence_question, current_round.brief, previous_briefs
