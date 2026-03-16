@@ -111,7 +111,20 @@ export const ResponseCard: React.FC<ResponseCardProps> = ({
             )}
           </>
         ) : (
-          <span style={{ color: 'var(--text-muted)' }}>Waiting for response...</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)' }}>
+            <div
+              style={{
+                width: 16,
+                height: 16,
+                border: '2px solid var(--border)',
+                borderTopColor: 'var(--accent)',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite',
+                flexShrink: 0,
+              }}
+            />
+            Waiting for response...
+          </div>
         )}
       </div>
     </div>

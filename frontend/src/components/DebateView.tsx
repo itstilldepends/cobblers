@@ -119,7 +119,7 @@ export const DebateView: React.FC<DebateViewProps> = ({
               roundNumber={currentRound.number}
               onBriefEdited={() => fetchDebate(debate.id)}
             />
-          ) : isLatest && debate.status === 'running' && currentRound.responses.length > 0 && (
+          ) : isLatest && debate.status === 'running' && currentRound.responses.length >= debate.model_ids.length && (
             <div
               style={{
                 textAlign: 'center',
@@ -266,7 +266,7 @@ export const DebateView: React.FC<DebateViewProps> = ({
                   onBriefEdited={() => fetchDebate(debate.id)}
                 />
               )}
-              {!fu.brief && debate.status === 'running' && fu.number === (debate.follow_ups?.length || 0) && fu.responses.length > 0 && (
+              {!fu.brief && debate.status === 'running' && fu.number === (debate.follow_ups?.length || 0) && fu.responses.length >= debate.model_ids.length && (
                 <div
                   style={{
                     textAlign: 'center',
