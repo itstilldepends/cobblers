@@ -27,16 +27,10 @@ export interface ConvergenceResult {
 
 export interface Round {
   number: number
+  question?: string | null
   responses: ModelResponse[]
   brief: DebateBrief | null
   convergence: ConvergenceResult | null
-}
-
-export interface FollowUp {
-  number: number
-  question: string
-  responses: ModelResponse[]
-  brief: DebateBrief | null
 }
 
 export interface DebateSession {
@@ -47,9 +41,7 @@ export interface DebateSession {
   max_rounds: number
   status: DebateStatus
   rounds: Round[]
-  follow_ups: FollowUp[]
   forked_from: string | null
-  fork_point: number | null
   created_at: string
 }
 
@@ -59,13 +51,12 @@ export interface DebateListItem {
   status: string
   model_ids: string[]
   round_count: number
-  follow_up_count: number
   created_at: string
   forked_from: string | null
 }
 
 export interface WSEvent {
-  type: 'round_start' | 'token' | 'model_response' | 'model_error' | 'brief_generated' | 'brief_error' | 'convergence_check' | 'converged' | 'debate_complete' | 'follow_up_start' | 'follow_up_response' | 'follow_up_brief' | 'follow_up_complete' | 'error'
+  type: 'round_start' | 'token' | 'model_response' | 'model_error' | 'brief_generated' | 'brief_error' | 'convergence_check' | 'converged' | 'debate_complete' | 'error'
   [key: string]: any
 }
 

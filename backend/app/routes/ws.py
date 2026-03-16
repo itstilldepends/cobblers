@@ -47,7 +47,7 @@ async def debate_websocket(websocket: WebSocket, debate_id: str):
             try:
                 event = await asyncio.wait_for(queue.get(), timeout=30.0)
                 await websocket.send_json(event)
-                if event.get("type") in ("debate_complete", "follow_up_complete", "error"):
+                if event.get("type") in ("debate_complete", "error"):
                     break
             except asyncio.TimeoutError:
                 # Send a keepalive ping to detect dead connections

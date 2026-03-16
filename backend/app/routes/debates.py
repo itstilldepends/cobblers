@@ -7,12 +7,11 @@ from app.adapters.registry import create_adapter, list_available_models, MODEL_R
 from app.config import settings
 from app.events import event_bus
 from app.models.api import (
+    ContinueRequest,
     CreateDebateRequest,
     DebateListItem,
     EditBriefRequest,
-    FollowUpRequest,
     ForkRequest,
-    ResumeRequest,
     ValidateKeysRequest,
 )
 from app.models.debate import DebateBrief, DebateSession, DebateStatus, Disagreement
@@ -170,15 +169,25 @@ async def edit_brief(debate_id: str, round_num: int, request: EditBriefRequest) 
     return target_round.brief
 
 
-@router.post("/debates/{debate_id}/follow-up")
-async def follow_up_debate(debate_id: str, request: FollowUpRequest) -> DebateSession:
-    """Continue a completed debate with a follow-up question."""
+@router.post("/debates/{debate_id}/continue")
+async def continue_debate(debate_id: str, request: ContinueRequest) -> DebateSession:
+    """Continue a debate: resume a paused debate, or follow up on a completed one."""
     session = store.load(debate_id)
     if not session:
         raise HTTPException(status_code=404, detail="Debate not found")
 
-    if session.status != DebateStatus.COMPLETED:
-        raise HTTPException(status_code=400, detail=f"Can only follow up on completed debates, current status: {session.status}")
+    if session.status == DebateStatus.COMPLETED and request.question:
+        # Follow-up on completed debate
+        pass
+    elif session.status == DebateStatus.PAUSED:
+        # Resume paused debate
+        pass
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot continue debate with status: {session.status}. "
+            "Use question parameter for completed debates, or resume paused debates without question.",
+        )
 
     api_keys = _merge_api_keys(request.api_keys)
 
@@ -193,41 +202,9 @@ async def follow_up_debate(debate_id: str, request: FollowUpRequest) -> DebateSe
     async def send_event(event: dict):
         await event_bus.publish(session.id, event)
 
-    task = asyncio.create_task(orchestrator.run_follow_up(session, request.question, send_event=send_event))
-    _running_tasks[session.id] = task
-
-    def _cleanup(t: asyncio.Task, sid: str = session.id):
-        _running_tasks.pop(sid, None)
-
-    task.add_done_callback(_cleanup)
-
-    return session
-
-
-@router.post("/debates/{debate_id}/resume")
-async def resume_debate(debate_id: str, request: ResumeRequest) -> DebateSession:
-    """Resume a paused debate."""
-    session = store.load(debate_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Debate not found")
-
-    if session.status != DebateStatus.PAUSED:
-        raise HTTPException(status_code=400, detail=f"Cannot resume debate with status: {session.status}")
-
-    api_keys = _merge_api_keys(request.api_keys)
-
-    try:
-        orchestrator = _create_orchestrator(session.model_ids, api_keys, session.judge_model_id)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    session.status = DebateStatus.RUNNING
-    store.save(session)
-
-    async def send_event(event: dict):
-        await event_bus.publish(session.id, event)
-
-    task = asyncio.create_task(orchestrator.run(session, send_event=send_event))
+    task = asyncio.create_task(
+        orchestrator.run(session, send_event=send_event, start_question=request.question)
+    )
     _running_tasks[session.id] = task
 
     def _cleanup(t: asyncio.Task, sid: str = session.id):
@@ -240,16 +217,13 @@ async def resume_debate(debate_id: str, request: ResumeRequest) -> DebateSession
 
 @router.post("/debates/{debate_id}/fork")
 async def fork_debate(debate_id: str, request: ForkRequest) -> DebateSession:
-    """Fork a debate at a specified round."""
+    """Fork a debate, copying all rounds. Created as PAUSED so user can edit brief before resuming."""
     session = store.load(debate_id)
     if not session:
         raise HTTPException(status_code=404, detail="Debate not found")
 
-    if request.fork_at_round < 1 or request.fork_at_round > len(session.rounds):
-        raise HTTPException(status_code=400, detail="Invalid fork round number")
-
-    # Create new session with rounds up to fork point, paused so user can edit brief before resuming
-    forked_rounds = [r.model_copy(deep=True) for r in session.rounds if r.number <= request.fork_at_round]
+    # Copy ALL rounds
+    forked_rounds = [r.model_copy(deep=True) for r in session.rounds]
     new_session = DebateSession(
         question=session.question,
         model_ids=session.model_ids,
@@ -257,7 +231,6 @@ async def fork_debate(debate_id: str, request: ForkRequest) -> DebateSession:
         max_rounds=session.max_rounds,
         rounds=forked_rounds,
         forked_from=session.id,
-        fork_point=request.fork_at_round,
         status=DebateStatus.PAUSED,
     )
     store.save(new_session)

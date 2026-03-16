@@ -16,16 +16,12 @@ class EditBriefRequest(BaseModel):
     summary: str | None = None
 
 
-class ResumeRequest(BaseModel):
-    api_keys: dict[str, str] = {}
-
-class FollowUpRequest(BaseModel):
-    question: str
+class ContinueRequest(BaseModel):
+    question: str | None = None
     api_keys: dict[str, str] = {}
 
 
 class ForkRequest(BaseModel):
-    fork_at_round: int
     api_keys: dict[str, str] = {}
 
 
@@ -39,6 +35,5 @@ class DebateListItem(BaseModel):
     status: str
     model_ids: list[str]
     round_count: int
-    follow_up_count: int = 0
     created_at: str
     forked_from: str | None = None

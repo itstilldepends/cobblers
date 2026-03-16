@@ -1,14 +1,25 @@
 from app.models.debate import DebateBrief
 
 
-def build_round_n_prompt(question: str, brief: DebateBrief, round_number: int) -> list[dict[str, str]]:
+def build_round_n_prompt(
+    question: str, brief: DebateBrief, round_number: int, follow_up_question: str | None = None
+) -> list[dict[str, str]]:
     """Build messages for subsequent rounds - respond to brief."""
     brief_text = format_brief(brief)
 
-    return [
-        {
-            "role": "user",
-            "content": f"""You are in round {round_number} of a multi-AI debate.
+    if follow_up_question:
+        content = f"""You are in round {round_number} of a multi-AI debate.
+
+The debate previously reached the following conclusions:
+{brief_text}
+
+The user now asks a follow-up question: {follow_up_question}. Please respond to this follow-up based on the debate context.
+
+Be concise and focus on advancing the discussion.
+
+Respond in the same language as the original question."""
+    else:
+        content = f"""You are in round {round_number} of a multi-AI debate.
 
 Original question: {question}
 
@@ -23,7 +34,12 @@ Please:
 
 Be concise and focus on advancing the discussion.
 
-Respond in the same language as the original question.""",
+Respond in the same language as the original question."""
+
+    return [
+        {
+            "role": "user",
+            "content": content,
         }
     ]
 

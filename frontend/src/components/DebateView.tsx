@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
-import { Play, AlertCircle, Send } from 'lucide-react'
+import { Play, AlertCircle, Send, ChevronDown, ChevronRight } from 'lucide-react'
 import type { DebateSession } from '../types'
-import { RoundTimeline } from './RoundTimeline'
 import { RoundView } from './RoundView'
 import { BriefView } from './BriefView'
 import { ConvergenceBar } from './ConvergenceBar'
@@ -26,31 +25,42 @@ export const DebateView: React.FC<DebateViewProps> = ({
   streamingTokens,
   loading,
 }) => {
-  const latestRound = debate.rounds.length > 0
-    ? debate.rounds[debate.rounds.length - 1].number
-    : 0
-  const [selectedRound, setSelectedRound] = useState(latestRound)
+  const [collapsedRounds, setCollapsedRounds] = useState<Set<number>>(new Set())
   const [followUp, setFollowUp] = useState('')
-  const { resumeDebate, followUpDebate, forkDebate, fetchDebate } = useDebateStore()
+  const { continueDebate, forkDebate, fetchDebate } = useDebateStore()
 
-  // Keep selectedRound in sync with latest if it's running
-  React.useEffect(() => {
-    if (debate.status === 'running' && debate.rounds.length > 0) {
-      setSelectedRound(debate.rounds[debate.rounds.length - 1].number)
-    }
-  }, [debate.rounds.length, debate.status])
-
-  const currentRound = debate.rounds.find((r) => r.number === selectedRound)
-  const isLatest = selectedRound === latestRound
   const statusColor = statusColors[debate.status] || '#6b7280'
+  const lastRoundIndex = debate.rounds.length - 1
 
-  const handleResume = async () => {
-    await resumeDebate(debate.id)
+  const toggleRound = (roundNumber: number) => {
+    setCollapsedRounds((prev) => {
+      const next = new Set(prev)
+      if (next.has(roundNumber)) {
+        next.delete(roundNumber)
+      } else {
+        next.add(roundNumber)
+      }
+      return next
+    })
   }
 
-  const handleFork = async (forkAtRound: number) => {
-    await forkDebate(debate.id, forkAtRound)
+  const isRoundCollapsed = (roundNumber: number, index: number) => {
+    // Latest round always expanded unless explicitly collapsed
+    if (index === lastRoundIndex) return collapsedRounds.has(roundNumber)
+    // Older rounds collapsed by default unless explicitly expanded
+    if (collapsedRounds.has(roundNumber)) return false
+    return true
   }
+
+  const handleContinue = async () => {
+    await continueDebate(debate.id)
+  }
+
+  const handleFork = async () => {
+    await forkDebate(debate.id)
+  }
+
+  const lastRound = debate.rounds.length > 0 ? debate.rounds[debate.rounds.length - 1] : null
 
   return (
     <div style={{ padding: '24px 32px', maxWidth: 1200, margin: '0 auto' }}>
@@ -95,64 +105,125 @@ export const DebateView: React.FC<DebateViewProps> = ({
         </div>
       </div>
 
-      {/* Timeline */}
-      <RoundTimeline
-        rounds={debate.rounds}
-        selectedRound={selectedRound}
-        onSelectRound={setSelectedRound}
-      />
+      {/* All Rounds */}
+      {debate.rounds.map((round, index) => {
+        const collapsed = isRoundCollapsed(round.number, index)
+        const isLast = index === lastRoundIndex
 
-      {/* Current Round */}
-      {currentRound && (
-        <>
-          <RoundView
-            round={currentRound}
-            modelIds={debate.model_ids}
-            streamingTokens={isLatest ? streamingTokens : {}}
-          />
-
-          {/* Brief */}
-          {currentRound.brief ? (
-            <BriefView
-              brief={currentRound.brief}
-              debateId={debate.id}
-              roundNumber={currentRound.number}
-              onBriefEdited={() => fetchDebate(debate.id)}
-            />
-          ) : isLatest && debate.status === 'running' && currentRound.responses.length >= debate.model_ids.length && (
-            <div
+        return (
+          <div key={round.number} style={{ marginBottom: 16 }}>
+            {/* Collapsible Header */}
+            <button
+              onClick={() => toggleRound(round.number)}
               style={{
-                textAlign: 'center',
-                padding: 24,
-                color: 'var(--text-muted)',
-                fontSize: 14,
-                marginTop: 16,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                width: '100%',
                 background: 'var(--card-bg)',
-                borderRadius: 10,
                 border: '1px solid var(--border)',
+                borderRadius: collapsed ? 8 : '8px 8px 0 0',
+                padding: '10px 14px',
+                cursor: 'pointer',
+                color: 'var(--text-primary)',
+                fontSize: 15,
+                fontWeight: 600,
+                textAlign: 'left',
               }}
             >
+              {collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+              Round {round.number}
+              {round.brief && (
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 400 }}>
+                  (brief available)
+                </span>
+              )}
+              {round.convergence?.converged && (
+                <span style={{ fontSize: 12, color: '#22c55e', fontWeight: 400, marginLeft: 'auto' }}>
+                  Converged
+                </span>
+              )}
+            </button>
+
+            {!collapsed && (
               <div
                 style={{
-                  width: 24,
-                  height: 24,
-                  border: '3px solid var(--border)',
-                  borderTopColor: 'var(--accent)',
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite',
-                  margin: '0 auto 12px',
+                  border: '1px solid var(--border)',
+                  borderTop: 'none',
+                  borderRadius: '0 0 8px 8px',
+                  padding: 16,
                 }}
-              />
-              Generating brief...
-            </div>
-          )}
+              >
+                {/* Follow-up question bubble */}
+                {round.question && (
+                  <div
+                    style={{
+                      background: 'var(--accent)12',
+                      border: '1px solid var(--accent)30',
+                      borderRadius: 8,
+                      padding: '10px 14px',
+                      marginBottom: 12,
+                      fontSize: 15,
+                    }}
+                  >
+                    <span style={{ fontWeight: 600, color: 'var(--accent)', marginRight: 8 }}>
+                      Follow-up:
+                    </span>
+                    {round.question}
+                  </div>
+                )}
 
-          {/* Convergence */}
-          {currentRound.convergence && (
-            <ConvergenceBar convergence={currentRound.convergence} />
-          )}
-        </>
-      )}
+                <RoundView
+                  round={round}
+                  modelIds={debate.model_ids}
+                  streamingTokens={isLast ? streamingTokens : {}}
+                />
+
+                {/* Brief */}
+                {round.brief ? (
+                  <BriefView
+                    brief={round.brief}
+                    debateId={debate.id}
+                    roundNumber={round.number}
+                    onBriefEdited={() => fetchDebate(debate.id)}
+                  />
+                ) : isLast && debate.status === 'running' && round.responses.length >= debate.model_ids.length && (
+                  <div
+                    style={{
+                      textAlign: 'center',
+                      padding: 24,
+                      color: 'var(--text-muted)',
+                      fontSize: 14,
+                      marginTop: 16,
+                      background: 'var(--card-bg)',
+                      borderRadius: 10,
+                      border: '1px solid var(--border)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 24,
+                        height: 24,
+                        border: '3px solid var(--border)',
+                        borderTopColor: 'var(--accent)',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite',
+                        margin: '0 auto 12px',
+                      }}
+                    />
+                    Generating brief...
+                  </div>
+                )}
+
+                {/* Convergence */}
+                {round.convergence && (
+                  <ConvergenceBar convergence={round.convergence} />
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })}
 
       {debate.rounds.length === 0 && debate.status === 'running' && (
         <div
@@ -187,7 +258,7 @@ export const DebateView: React.FC<DebateViewProps> = ({
               : 'Debate is paused. Edit the brief above if needed, then continue.'}
           </div>
           <button
-            onClick={handleResume}
+            onClick={handleContinue}
             disabled={loading}
             style={{
               background: 'var(--accent)',
@@ -230,74 +301,6 @@ export const DebateView: React.FC<DebateViewProps> = ({
         </div>
       )}
 
-      {/* Follow-ups */}
-      {debate.follow_ups && debate.follow_ups.length > 0 && (
-        <div style={{ marginTop: 32 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, color: 'var(--text-secondary)' }}>
-            Follow-up Questions
-          </h3>
-          {debate.follow_ups.map((fu) => (
-            <div key={fu.number} style={{ marginBottom: 24 }}>
-              <div
-                style={{
-                  background: 'var(--accent)12',
-                  border: '1px solid var(--accent)30',
-                  borderRadius: 8,
-                  padding: '10px 14px',
-                  marginBottom: 12,
-                  fontSize: 15,
-                }}
-              >
-                <span style={{ fontWeight: 600, color: 'var(--accent)', marginRight: 8 }}>
-                  Q{fu.number}:
-                </span>
-                {fu.question}
-              </div>
-              <RoundView
-                round={{ number: fu.number, responses: fu.responses, brief: null, convergence: null }}
-                modelIds={debate.model_ids}
-                streamingTokens={fu.number === (debate.follow_ups?.length || 0) && debate.status === 'running' ? streamingTokens : {}}
-              />
-              {fu.brief && (
-                <BriefView
-                  brief={fu.brief}
-                  debateId={debate.id}
-                  roundNumber={-fu.number}
-                  onBriefEdited={() => fetchDebate(debate.id)}
-                />
-              )}
-              {!fu.brief && debate.status === 'running' && fu.number === (debate.follow_ups?.length || 0) && fu.responses.length >= debate.model_ids.length && (
-                <div
-                  style={{
-                    textAlign: 'center',
-                    padding: 24,
-                    color: 'var(--text-muted)',
-                    fontSize: 14,
-                    marginTop: 16,
-                    background: 'var(--card-bg)',
-                    borderRadius: 10,
-                    border: '1px solid var(--border)',
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 24,
-                      height: 24,
-                      border: '3px solid var(--border)',
-                      borderTopColor: 'var(--accent)',
-                      borderRadius: '50%',
-                      animation: 'spin 1s linear infinite',
-                      margin: '0 auto 12px',
-                    }}
-                  />
-                  Generating brief...
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* Follow-up Input */}
       {debate.status === 'completed' && (
         <div
@@ -316,7 +319,7 @@ export const DebateView: React.FC<DebateViewProps> = ({
             onSubmit={async (e) => {
               e.preventDefault()
               if (!followUp.trim()) return
-              await followUpDebate(debate.id, followUp.trim())
+              await continueDebate(debate.id, followUp.trim())
               setFollowUp('')
             }}
             style={{ display: 'flex', gap: 8 }}

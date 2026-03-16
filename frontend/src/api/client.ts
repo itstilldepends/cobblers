@@ -54,46 +54,27 @@ export async function editBrief(
   if (!res.ok) throw new Error(await res.text())
 }
 
-export async function followUpDebate(
+export async function continueDebate(
   id: string,
-  question: string,
-  apiKeys: Record<string, string>
-): Promise<DebateSession> {
-  const res = await fetch(`${BASE}/debates/${id}/follow-up`, {
+  apiKeys: Record<string, string>,
+  question?: string
+): Promise<void> {
+  const res = await fetch(`${BASE}/debates/${id}/continue`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ question, api_keys: apiKeys }),
-  })
-  if (!res.ok) throw new Error(await res.text())
-  return res.json()
-}
-
-export async function resumeDebate(
-  id: string,
-  apiKeys: Record<string, string>
-): Promise<void> {
-  const res = await fetch(`${BASE}/debates/${id}/resume`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ api_keys: apiKeys }),
   })
   if (!res.ok) throw new Error(await res.text())
 }
 
 export async function forkDebate(
   id: string,
-  forkAtRound: number,
-  apiKeys: Record<string, string>,
-  question?: string
+  apiKeys: Record<string, string>
 ): Promise<DebateSession> {
   const res = await fetch(`${BASE}/debates/${id}/fork`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      fork_at_round: forkAtRound,
-      api_keys: apiKeys,
-      question,
-    }),
+    body: JSON.stringify({ api_keys: apiKeys }),
   })
   if (!res.ok) throw new Error(await res.text())
   return res.json()

@@ -195,7 +195,7 @@ export const Layout: React.FC<LayoutProps> = ({
                   />
                   <span style={{ textTransform: 'capitalize' }}>{debate.status}</span>
                   <span style={{ marginLeft: 'auto' }}>
-                    R{debate.round_count}{debate.follow_up_count > 0 ? ` +${debate.follow_up_count}FU` : ''} | {formatDate(debate.created_at)}
+                    R{debate.round_count} | {formatDate(debate.created_at)}
                   </span>
                 </div>
               </div>

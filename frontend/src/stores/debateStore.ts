@@ -16,9 +16,8 @@ interface DebateStore {
   fetchDebate: (id: string) => Promise<void>
   startDebate: (question: string, modelIds: string[], maxRounds: number, judgeModelId?: string | null) => Promise<string>
   deleteDebate: (id: string) => Promise<void>
-  resumeDebate: (id: string) => Promise<void>
-  followUpDebate: (id: string, question: string) => Promise<void>
-  forkDebate: (id: string, forkAtRound: number, question?: string) => Promise<string>
+  continueDebate: (id: string, question?: string) => Promise<void>
+  forkDebate: (id: string) => Promise<string>
   setApiKey: (provider: string, key: string) => void
   loadApiKeys: () => void
   clearError: () => void
@@ -79,10 +78,10 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     }
   },
 
-  resumeDebate: async (id: string) => {
+  continueDebate: async (id: string, question?: string) => {
     set({ loading: true, error: null, streamingTokens: {} })
     try {
-      await api.resumeDebate(id, get().apiKeys)
+      await api.continueDebate(id, get().apiKeys, question)
       const { currentDebate } = get()
       if (currentDebate && currentDebate.id === id) {
         set({ currentDebate: { ...currentDebate, status: 'running' }, loading: false })
@@ -90,24 +89,14 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         set({ loading: false })
       }
     } catch (err: any) {
-      set({ error: err.message || 'Failed to resume debate', loading: false })
+      set({ error: err.message || 'Failed to continue debate', loading: false })
     }
   },
 
-  followUpDebate: async (id: string, question: string) => {
-    set({ loading: true, error: null, streamingTokens: {} })
-    try {
-      const debate = await api.followUpDebate(id, question, get().apiKeys)
-      set({ currentDebate: debate, loading: false })
-    } catch (err: any) {
-      set({ error: err.message || 'Failed to send follow-up', loading: false })
-    }
-  },
-
-  forkDebate: async (id: string, forkAtRound: number, question?: string) => {
+  forkDebate: async (id: string) => {
     set({ loading: true, error: null })
     try {
-      const debate = await api.forkDebate(id, forkAtRound, get().apiKeys, question)
+      const debate = await api.forkDebate(id, get().apiKeys)
       set({ currentDebate: debate, loading: false, streamingTokens: {} })
       get().fetchDebates()
       return debate.id
@@ -229,69 +218,6 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           currentDebate: {
             ...currentDebate,
             status,
-          },
-          streamingTokens: {},
-        })
-        get().fetchDebates()
-        get().fetchDebate(currentDebate.id)
-        break
-      }
-
-      case 'follow_up_start': {
-        const newFollowUp = {
-          number: event.number,
-          question: event.question || '',
-          responses: [],
-          brief: null,
-        }
-        set({
-          currentDebate: {
-            ...currentDebate,
-            status: 'running',
-            follow_ups: [...(currentDebate.follow_ups || []), newFollowUp],
-          },
-          streamingTokens: {},
-        })
-        break
-      }
-
-      case 'follow_up_response': {
-        const fus = [...(currentDebate.follow_ups || [])]
-        const lastFu = { ...fus[fus.length - 1] }
-        lastFu.responses = [...lastFu.responses, {
-          model_id: event.model_id as string,
-          provider: '',
-          text: event.text as string,
-        }]
-        fus[fus.length - 1] = lastFu
-
-        const tokens = { ...get().streamingTokens }
-        delete tokens[event.model_id as string]
-
-        set({
-          currentDebate: { ...currentDebate, follow_ups: fus },
-          streamingTokens: tokens,
-        })
-        break
-      }
-
-      case 'follow_up_brief': {
-        const fus = [...(currentDebate.follow_ups || [])]
-        const idx = fus.findIndex(f => f.number === event.number)
-        if (idx >= 0) {
-          fus[idx] = { ...fus[idx], brief: event.brief }
-        }
-        set({
-          currentDebate: { ...currentDebate, follow_ups: fus },
-        })
-        break
-      }
-
-      case 'follow_up_complete': {
-        set({
-          currentDebate: {
-            ...currentDebate,
-            status: 'completed',
           },
           streamingTokens: {},
         })
