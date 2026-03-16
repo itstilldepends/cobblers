@@ -180,7 +180,12 @@ export const DebateView: React.FC<DebateViewProps> = ({
 
       {/* Resume / Error */}
       {debate.status === 'paused' && (
-        <div style={{ marginTop: 16 }}>
+        <div style={{ marginTop: 16, background: 'var(--card-bg)', borderRadius: 10, border: '1px solid var(--border)', padding: 16 }}>
+          <div style={{ fontSize: 14, color: 'var(--text-muted)', marginBottom: 10 }}>
+            {debate.forked_from
+              ? 'This is a forked debate. Edit the brief above to change the direction, then continue.'
+              : 'Debate is paused. Edit the brief above if needed, then continue.'}
+          </div>
           <button
             onClick={handleResume}
             disabled={loading}
@@ -199,7 +204,7 @@ export const DebateView: React.FC<DebateViewProps> = ({
               opacity: loading ? 0.6 : 1,
             }}
           >
-            <Play size={16} /> Resume Debate
+            <Play size={16} /> Continue Debate
           </button>
         </div>
       )}
