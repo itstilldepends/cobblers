@@ -182,8 +182,8 @@ async def follow_up_debate(debate_id: str, request: FollowUpRequest) -> DebateSe
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    # Extend max_rounds to allow more rounds
-    session.max_rounds = len(session.rounds) + 5
+    # Run exactly one round for the follow-up, then stop for user review
+    session.max_rounds = len(session.rounds) + 1
     session.status = DebateStatus.RUNNING
     store.save(session)
 
