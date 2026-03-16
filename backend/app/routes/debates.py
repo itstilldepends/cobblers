@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.adapters.registry import create_adapter, list_available_models, MODEL_REGISTRY, _PROVIDER_KEY_MAP
 from app.config import settings
+from app.events import event_bus
 from app.models.api import (
     CreateDebateRequest,
     DebateListItem,
@@ -81,8 +82,12 @@ async def create_debate(request: CreateDebateRequest) -> DebateSession:
     )
     store.save(session)
 
+    # Create event callback that publishes to the event bus
+    async def send_event(event: dict):
+        await event_bus.publish(session.id, event)
+
     # Launch orchestrator as background task
-    task = asyncio.create_task(orchestrator.run(session))
+    task = asyncio.create_task(orchestrator.run(session, send_event=send_event))
     _running_tasks[session.id] = task
 
     # Clean up task reference when done
@@ -185,7 +190,10 @@ async def follow_up_debate(debate_id: str, request: FollowUpRequest) -> DebateSe
     session.status = DebateStatus.RUNNING
     store.save(session)
 
-    task = asyncio.create_task(orchestrator.run_follow_up(session, request.question))
+    async def send_event(event: dict):
+        await event_bus.publish(session.id, event)
+
+    task = asyncio.create_task(orchestrator.run_follow_up(session, request.question, send_event=send_event))
     _running_tasks[session.id] = task
 
     def _cleanup(t: asyncio.Task, sid: str = session.id):
@@ -216,7 +224,10 @@ async def resume_debate(debate_id: str, request: ResumeRequest) -> DebateSession
     session.status = DebateStatus.RUNNING
     store.save(session)
 
-    task = asyncio.create_task(orchestrator.run(session))
+    async def send_event(event: dict):
+        await event_bus.publish(session.id, event)
+
+    task = asyncio.create_task(orchestrator.run(session, send_event=send_event))
     _running_tasks[session.id] = task
 
     def _cleanup(t: asyncio.Task, sid: str = session.id):
