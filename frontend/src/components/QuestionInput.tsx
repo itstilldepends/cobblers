@@ -13,9 +13,19 @@ export const QuestionInput: React.FC<QuestionInputProps> = ({ onStart, loading }
   const [availableModels, setAvailableModels] = useState<
     { model_id: string; provider: string }[]
   >([])
-  const [selectedModels, setSelectedModels] = useState<string[]>([])
-  const [judgeModel, setJudgeModel] = useState<string>('')
-  const [maxRounds, setMaxRounds] = useState(5)
+  const [selectedModels, setSelectedModels] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('cobblers_selected_models')
+      return saved ? JSON.parse(saved) : []
+    } catch { return [] }
+  })
+  const [judgeModel, setJudgeModel] = useState<string>(() =>
+    localStorage.getItem('cobblers_judge_model') || ''
+  )
+  const [maxRounds, setMaxRounds] = useState(() => {
+    const saved = localStorage.getItem('cobblers_max_rounds')
+    return saved ? Number(saved) : 5
+  })
   const [modelsLoading, setModelsLoading] = useState(true)
   const [serverKeys, setServerKeys] = useState<Record<string, boolean>>({})
   const apiKeys = useDebateStore((s) => s.apiKeys)
@@ -25,9 +35,11 @@ export const QuestionInput: React.FC<QuestionInputProps> = ({ onStart, loading }
     listModels()
       .then((models) => {
         setAvailableModels(models)
-        if (models.length > 0) {
-          setSelectedModels(models.slice(0, 3).map((m) => m.model_id))
-        }
+        // Only set defaults if no saved selection
+        setSelectedModels((prev) => {
+          if (prev.length > 0) return prev
+          return models.slice(0, 3).map((m) => m.model_id)
+        })
       })
       .catch(() => {
         // Set some defaults if API is not available
@@ -40,6 +52,17 @@ export const QuestionInput: React.FC<QuestionInputProps> = ({ onStart, loading }
       })
       .finally(() => setModelsLoading(false))
   }, [])
+
+  // Persist selections to localStorage
+  useEffect(() => {
+    localStorage.setItem('cobblers_selected_models', JSON.stringify(selectedModels))
+  }, [selectedModels])
+  useEffect(() => {
+    localStorage.setItem('cobblers_judge_model', judgeModel)
+  }, [judgeModel])
+  useEffect(() => {
+    localStorage.setItem('cobblers_max_rounds', String(maxRounds))
+  }, [maxRounds])
 
   const toggleModel = (modelId: string) => {
     setSelectedModels((prev) =>
