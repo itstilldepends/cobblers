@@ -225,7 +225,7 @@ export const DebateView: React.FC<DebateViewProps> = ({
         )
       })}
 
-      {debate.rounds.length === 0 && debate.status === 'running' && (
+      {debate.status === 'running' && (debate.rounds.length === 0 || (lastRound && lastRound.brief)) && (
         <div
           style={{
             textAlign: 'center',
@@ -245,7 +245,7 @@ export const DebateView: React.FC<DebateViewProps> = ({
               margin: '0 auto 16px',
             }}
           />
-          Waiting for first round to start...
+          {debate.rounds.length === 0 ? 'Waiting for first round to start...' : 'Starting next round...'}
         </div>
       )}
 
