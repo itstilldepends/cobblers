@@ -34,8 +34,15 @@ class DebateOrchestrator:
             start_round = len(session.rounds) + 1
 
             # For follow-ups, reset the round budget: allow max_rounds additional rounds
+            # Also grab the last brief before this run as context for convergence
+            prior_context_brief = None
             if start_question:
                 end_round = start_round + session.max_rounds - 1
+                # Get the final brief from prior discussion as background context
+                for r in reversed(session.rounds):
+                    if r.brief:
+                        prior_context_brief = r.brief
+                        break
             else:
                 end_round = session.max_rounds
 
@@ -124,7 +131,8 @@ class DebateOrchestrator:
                     ]
                     try:
                         convergence = await self.convergence_detector.check(
-                            convergence_question, current_round.brief, previous_briefs
+                            convergence_question, current_round.brief, previous_briefs,
+                            prior_context_brief=prior_context_brief,
                         )
                         current_round.convergence = convergence
                         if send_event:

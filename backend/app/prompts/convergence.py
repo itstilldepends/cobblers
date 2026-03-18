@@ -3,9 +3,21 @@ from app.prompts.round_n import format_brief
 
 
 def build_convergence_prompt(
-    question: str, brief: DebateBrief, previous_briefs: list[DebateBrief]
+    question: str,
+    brief: DebateBrief,
+    previous_briefs: list[DebateBrief],
+    prior_context_brief: DebateBrief | None = None,
 ) -> list[dict[str, str]]:
-    """Ask an LLM to judge if the debate has converged."""
+    """Ask an LLM to judge if the debate has converged.
+
+    Args:
+        question: The question being debated (follow-up question if applicable).
+        brief: The current round's brief.
+        previous_briefs: Briefs from earlier rounds of the SAME question's run.
+        prior_context_brief: If this is a follow-up, the final brief from the
+            prior discussion. Provided as background only — convergence should
+            be judged solely on the current question's discussion.
+    """
     current_text = format_brief(brief)
 
     history = ""
@@ -15,22 +27,31 @@ def build_convergence_prompt(
             history_parts.append(f"### Round {i} Brief:\n{format_brief(pb)}")
         history = "\n\n".join(history_parts)
 
+    context_section = ""
+    if prior_context_brief:
+        context_section = f"""For background, here is the conclusion from the prior discussion (DO NOT use this to judge convergence — it is only context):
+{format_brief(prior_context_brief)}
+
+---
+
+"""
+
     return [
         {
             "role": "user",
             "content": f"""You are judging whether a multi-AI debate has converged (reached sufficient agreement or exhausted productive discussion).
 
-Original question: {question}
+Question being discussed: {question}
 
-{"Previous round briefs:" + chr(10) + history + chr(10) + chr(10) if history else ""}Current round brief:
+{context_section}{"Previous round briefs for this question:" + chr(10) + history + chr(10) + chr(10) if history else ""}Current round brief:
 {current_text}
 
-Analyze whether the debate has converged. Consider:
+Analyze whether the debate on the above question has converged. Consider:
 1. Are the remaining disagreements substantive or minor?
 2. Have positions changed significantly between rounds?
 3. Are the open questions likely to be resolved with further discussion?
 
-IMPORTANT: Write the "reasoning" field in the same language as the original question.
+IMPORTANT: Write the "reasoning" field in the same language as the question.
 
 Respond with valid JSON:
 {{

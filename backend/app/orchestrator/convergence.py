@@ -11,10 +11,14 @@ class ConvergenceDetector:
         self.adapter = adapter
 
     async def check(
-        self, question: str, brief: DebateBrief, previous_briefs: list[DebateBrief]
+        self,
+        question: str,
+        brief: DebateBrief,
+        previous_briefs: list[DebateBrief],
+        prior_context_brief: DebateBrief | None = None,
     ) -> ConvergenceResult:
         """Check if the debate has converged."""
-        messages = build_convergence_prompt(question, brief, previous_briefs)
+        messages = build_convergence_prompt(question, brief, previous_briefs, prior_context_brief)
         raw = await self.adapter.generate(messages)
         return self._parse_result(raw)
 
