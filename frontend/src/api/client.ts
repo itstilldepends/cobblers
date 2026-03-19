@@ -83,7 +83,7 @@ export async function forkDebate(
 export async function validateKeys(
   apiKeys: Record<string, string>
 ): Promise<Record<string, boolean>> {
-  const res = await fetch(`${BASE}/validate-keys`, {
+  const res = await fetch(`${BASE}/config/validate-keys`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ api_keys: apiKeys }),

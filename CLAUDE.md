@@ -10,11 +10,13 @@ Multi-LLM debate/consensus tool.
 ## Architecture decisions
 - API keys: never persisted server-side, frontend stores in localStorage, passed per-request. Also supports .env for convenience
 - Storage: JSON files in backend/data/ (not SQLite), FileStore interface is narrow for future DB swap
-- WebSocket is server-push only; mutations go through REST
+- WebSocket is server-push only; mutations go through REST. Event bus (app/events.py) decouples REST routes from WS — routes publish events, WS subscribes and forwards
 - Judge model (brief/convergence) is user-configurable, defaults to first debater. Judge sees anonymized model names (Model A/B/C) to avoid bias; real names restored in stored data and frontend display
 - Python env: venv (not conda) — dependencies are simple, no scientific computing needed
-- **Follow-ups vs rounds**: Completely separate concepts. Debate rounds have convergence logic and multi-round progression. Follow-ups are single-round Q&A after convergence, with own numbering (1, 2, 3...), own data model (`FollowUp`), own prompt (anchored on final debate brief + previous follow-up summaries), and own WS events
-- **Fork**: Purely "branch from round N" — no new question. Creates a new DebateSession with rounds truncated at fork point, then resumes the debate loop
+- **Every user input treated equally**: Follow-ups are regular rounds with a `question` field on the Round model. Same pipeline: LLM responses → brief → convergence → continue if not converged. Round budget resets per question (each follow-up gets `max_rounds` additional rounds)
+- **Convergence scoping**: Follow-up convergence only compares briefs from the current question's run. Prior discussion's final brief passed as background context only
+- **Fork**: Copies ALL debate state (all rounds) into a new paused session. No round picker. User can edit the last brief then continue
+- **Unified /continue endpoint**: Replaces old /follow-up and /resume. Optional `question` param — with question = follow-up, without = resume from paused state
 - **OpenRouter**: Single API key covers all models. Model IDs prefixed with `or/` (e.g. `or/anthropic/claude-sonnet-4`). Uses OpenAI-compatible API with different base_url
 - Frontend persists model selection, judge model, and max rounds to localStorage
 
@@ -27,5 +29,5 @@ Multi-LLM debate/consensus tool.
 ## Things to watch out for
 - Orchestrator runs as asyncio.create_task (background), don't await it in route handlers
 - WS handshake: client must send {api_keys: {...}} as first message after connect
-- Debate event types: round_start, model_response, model_error, brief_generated, brief_error, convergence_check, converged, debate_complete, error
-- Follow-up event types: follow_up_start, token (shared), follow_up_response, follow_up_brief, follow_up_complete
+- Event types: round_start, model_response, model_error, brief_generated, brief_error, convergence_check, converged, debate_complete, error
+- Legacy data: Pydantic validator on DebateSession auto-migrates old `follow_ups` field into rounds

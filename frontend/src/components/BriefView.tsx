@@ -9,7 +9,7 @@ interface BriefViewProps {
   roundNumber: number
   onBriefEdited?: () => void
 }
-1
+
 export const BriefView: React.FC<BriefViewProps> = ({
   brief,
   debateId,
